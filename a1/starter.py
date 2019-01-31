@@ -31,31 +31,38 @@ def loadData():
 
 def MSE(W, b, x, y, reg):
     #cost
-    num_train_ex = X.shape[0]
-    num_pixels = X.shape[1]*X.shape[2]
-    W_aux = W.flatten()
-    X_aux = X.reshape((num_train_ex, num_pixels))
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    W_aux = W.reshape((num_pixels, 1))
+    X_aux = x.reshape((num_train_ex, num_pixels))
     WX = np.matmul(X_aux, W_aux)
     cost = WX + b - y
     cost = np.sum(cost*cost)/(2*num_train_ex)
 
     #regularization
-    reg = W_aux.dot(W_aux)*reg/2
+    regu = np.matmul(W_aux.transpose(), W_aux)*reg/2
 
-    return cost+reg
+    return np.sum(cost+regu)
     
 def gradMSE(W, b, x, y, reg):
     # grad with respect weights
-    num_train_ex = X.shape[0]
-    num_pixels = X.shape[1]*X.shape[2]
-    W_aux = W.flatten()
-    X_aux = X.reshape((num_train_ex, num_pixels))
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    W_aux = W.reshape((num_pixels, 1))
+    X_aux = x.reshape((num_train_ex, num_pixels))
+    #print(W_aux.shape, X_aux.shape, np.matmul(X_aux, W_aux).shape, y.shape, (np.matmul(X_aux, W_aux) + b - y).shape)
     c = np.matmul(X_aux, W_aux) + b - y
-    grad_W = np.sum(c*X_aux, axis=1)/num_train_ex + reg*W_aux
+    #print(c)
+    #print(np.matmul(X_aux.transpose(), c))
+    grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
+    # temp = np.array([[1, 1, 1],[2, 2, 2],[3, 3, 3]])
+    # temp2 = np.array([[1],[2],[3]])
+    #print(temp.shape, temp2.shape, temp*temp2)
+    # print(c.shape, (X_aux*c).shape, grad_W.shape)
 
-    grad_b = np.sum(c)
+    grad_b = np.sum(c)/num_train_ex
 
-    return grad_W.reshape((X.shape[1], X.shape[2])), grad_b
+    return grad_W.reshape((x.shape[1], x.shape[2])), grad_b
 
 def crossEntropyLoss(W, b, x, y, reg):
     # Your implementation here
@@ -69,12 +76,25 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
     i = 0
     error = float("inf")
     while i  < iterations or error <= EPS:
-
+        W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
+        W = W - alpha*W_grad
+        b = b - alpha*b_grad
+        error = MSE(W, b, trainingData, trainingLabels, reg)
+        if i % 1000 == 0:
+            print(error)
+        #print(error)
         i += 1
-    return
+    return W, b
 
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     # Your implementation here
     return
 
-loadData()
+trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+#W = np.array([[1,2],[3,4]])
+#x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
+#y = np.array([[1], [2], [1]])
+#print(gradMSE(W, 1, x, y, 2))
+W = np.random.rand(trainData.shape[1], trainData.shape[2])
+alpha = 0.0001
+grad_descent(W , 0, trainData, trainTarget, alpha, 5000, 0, 1*10**(-7))
