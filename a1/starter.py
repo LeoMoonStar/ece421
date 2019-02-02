@@ -66,13 +66,49 @@ def gradMSE(W, b, x, y, reg):
 
 def crossEntropyLoss(W, b, x, y, reg):
     # Your implementation here
-    return
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    W_aux = W.reshape((num_pixels, 1))
+    X_aux = x.reshape((num_train_ex, num_pixels))
+
+    xn = np.matmul(X_aux, W_aux) + b
+    #print(xn)
+
+    sigma = 1 / (1 + np.exp(-xn))
+    #print(np.log(sigma).shape, y.shape)
+    #print((-y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
+
+    cross_entropy = np.sum((-y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
+    cross_entropy /= num_train_ex
+    #print(cross_entropy)
+
+    #regularization
+    regu = np.matmul(W_aux.transpose(), W_aux)*reg/2
+    #print(regu)
+
+    return np.sum(cross_entropy+regu)
 
 def gradCE(W, b, x, y, reg):
     # Your implementation here
-    return
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    W_aux = W.reshape((num_pixels, 1))
+    X_aux = x.reshape((num_train_ex, num_pixels))
 
-def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS):
+    xn = np.matmul(X_aux, W_aux) + b
+
+    sigma = (1 / (1 + np.exp(xn)))
+    #grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
+
+    c = -y*sigma + (1 - y)*sigma*np.exp(xn)
+    grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
+    print(grad_W)
+
+    grad_b = np.sum(c)/num_train_ex
+
+    return grad_W.reshape((x.shape[1], x.shape[2])), grad_b
+
+def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS, lossType="None"):
     i = 0
     error = float("inf")
     while i  < iterations or error <= EPS:
@@ -91,10 +127,10 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     return
 
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
-#W = np.array([[1,2],[3,4]])
-#x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
-#y = np.array([[1], [2], [1]])
-#print(gradMSE(W, 1, x, y, 2))
-W = np.random.rand(trainData.shape[1], trainData.shape[2])
-alpha = 0.0001
+W = np.array([[1,2],[3,4]])
+x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
+y = np.array([[1], [2], [1]])
+#print(gradCE(W, 1, x, y, 1))
+#W = np.random.rand(trainData.shape[1], trainData.shape[2])
+#alpha = 0.0001
 grad_descent(W , 0, trainData, trainTarget, alpha, 5000, 0, 1*10**(-7))
