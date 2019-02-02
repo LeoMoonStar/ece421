@@ -1,10 +1,10 @@
 import tensorflow as tf
 import numpy as np
-#import matplotlib.pyplot as plt
-#Temp
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+#Temp
+#import matplotlib
+#matplotlib.use("Agg")
+#import matplotlib.pyplot as plt
 
 def loadData():
     with np.load('notMNIST.npz') as data :
@@ -30,11 +30,13 @@ def loadData():
     return trainData, validData, testData, trainTarget, validTarget, testTarget
 
 def MSE(W, b, x, y, reg):
-    #cost
+    #reshaping data and weights
     num_train_ex = x.shape[0]
     num_pixels = x.shape[1]*x.shape[2]
     W_aux = W.reshape((num_pixels, 1))
     X_aux = x.reshape((num_train_ex, num_pixels))
+
+    #calculating cost
     WX = np.matmul(X_aux, W_aux)
     cost = WX + b - y
     cost = np.sum(cost*cost)/(2*num_train_ex)
@@ -44,23 +46,21 @@ def MSE(W, b, x, y, reg):
 
     return np.sum(cost+regu)
     
+#calculates gradient of MSE function with respect to
+#W and b
 def gradMSE(W, b, x, y, reg):
-    # grad with respect weights
+    #reshaping data and weights
     num_train_ex = x.shape[0]
     num_pixels = x.shape[1]*x.shape[2]
     W_aux = W.reshape((num_pixels, 1))
     X_aux = x.reshape((num_train_ex, num_pixels))
-    #print(W_aux.shape, X_aux.shape, np.matmul(X_aux, W_aux).shape, y.shape, (np.matmul(X_aux, W_aux) + b - y).shape)
-    c = np.matmul(X_aux, W_aux) + b - y
-    #print(c)
-    #print(np.matmul(X_aux.transpose(), c))
-    grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
-    # temp = np.array([[1, 1, 1],[2, 2, 2],[3, 3, 3]])
-    # temp2 = np.array([[1],[2],[3]])
-    #print(temp.shape, temp2.shape, temp*temp2)
-    # print(c.shape, (X_aux*c).shape, grad_W.shape)
 
-    grad_b = np.sum(c)/num_train_ex
+    #calculating gradient of weights
+    e_in = np.matmul(X_aux, W_aux) + b - y
+    grad_W = np.matmul(X_aux.transpose(), e_in)/num_train_ex + reg*W_aux
+
+    #calculating gradient of bias
+    grad_b = np.sum(e_in)/num_train_ex
 
     return grad_W.reshape((x.shape[1], x.shape[2])), grad_b
 
@@ -72,19 +72,14 @@ def crossEntropyLoss(W, b, x, y, reg):
     X_aux = x.reshape((num_train_ex, num_pixels))
 
     xn = np.matmul(X_aux, W_aux) + b
-    #print(xn)
 
     sigma = 1 / (1 + np.exp(-xn))
-    #print(np.log(sigma).shape, y.shape)
-    #print((-y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
 
     cross_entropy = np.sum((-y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
     cross_entropy /= num_train_ex
-    #print(cross_entropy)
 
     #regularization
     regu = np.matmul(W_aux.transpose(), W_aux)*reg/2
-    #print(regu)
 
     return np.sum(cross_entropy+regu)
 
@@ -98,28 +93,37 @@ def gradCE(W, b, x, y, reg):
     xn = np.matmul(X_aux, W_aux) + b
 
     sigma = (1 / (1 + np.exp(xn)))
-    #grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
 
-    c = -y*sigma + (1 - y)*sigma*np.exp(xn)
-    grad_W = np.matmul(X_aux.transpose(), c)/num_train_ex + reg*W_aux
+    e_in = -y*sigma + (1 - y)*sigma*np.exp(xn)
+    grad_W = np.matmul(X_aux.transpose(), e_in)/num_train_ex + reg*W_aux
     print(grad_W)
 
-    grad_b = np.sum(c)/num_train_ex
+    grad_b = np.sum(e_in)/num_train_ex
 
     return grad_W.reshape((x.shape[1], x.shape[2])), grad_b
 
 def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS, lossType="None"):
     i = 0
-    error = float("inf")
-    while i  < iterations or error <= EPS:
+    error1 = float("inf")
+    error2 = 0
+    iter_plt = []
+    error_plt = []
+    while i  < iterations or abs(error1 - error2) <= EPS:
+        error1 = MSE(W, b, trainingData, trainingLabels, reg)
         W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
         W = W - alpha*W_grad
         b = b - alpha*b_grad
-        error = MSE(W, b, trainingData, trainingLabels, reg)
+        error2 = MSE(W, b, trainingData, trainingLabels, reg)
+
+        iter_plt.append(i)
+        error_plt.append(error2)
         if i % 1000 == 0:
-            print(error)
+            print(error2)
         #print(error)
         i += 1
+    plt.plot(iter_plt, error_plt, 'ro')
+    plt.axis([0, len(iter_plt), 0, max(error_plt)])
+    plt.show()
     return W, b
 
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
@@ -131,6 +135,8 @@ W = np.array([[1,2],[3,4]])
 x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
 y = np.array([[1], [2], [1]])
 #print(gradCE(W, 1, x, y, 1))
-#W = np.random.rand(trainData.shape[1], trainData.shape[2])
-#alpha = 0.0001
-grad_descent(W , 0, trainData, trainTarget, alpha, 5000, 0, 1*10**(-7))
+W = np.random.rand(trainData.shape[1], trainData.shape[2])
+alpha = 0.00001
+W, b = grad_descent(W , 0, trainData, trainTarget, alpha, 5000, 0, 1*10**(-7))
+W, b = grad_descent(W, b, validData, validTarget, alpha, 5000, 0, 1*10**(-7))
+grad_descent(W, b, testData, testTarget, alpha, 5000, 0, 1*10**(-7))
