@@ -1,10 +1,10 @@
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
-#Temp
-#import matplotlib
-#matplotlib.use("Agg")
 #import matplotlib.pyplot as plt
+#Temp
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 def loadData():
     with np.load('notMNIST.npz') as data :
@@ -28,6 +28,17 @@ def loadData():
         validData, validTarget = Data[3500:3600], Target[3500:3600]
         testData, testTarget = Data[3600:], Target[3600:]
     return trainData, validData, testData, trainTarget, validTarget, testTarget
+
+def LeastSquares(x, y):
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    X_aux = x.reshape((num_train_ex, num_pixels))
+
+    X_aux_t = np.transpose(X_aux)
+    inverse = np.linalg.inv(np.matmul(X_aux_t, X_aux))
+    W = np.matmul(np.matmul(inverse, X_aux_t), y)
+    return W.reshape((x.shape[1], x.shape[2]))
+
 
 def MSE(W, b, x, y, reg):
     #reshaping data and weights
@@ -72,10 +83,23 @@ def crossEntropyLoss(W, b, x, y, reg):
     X_aux = x.reshape((num_train_ex, num_pixels))
 
     xn = np.matmul(X_aux, W_aux) + b
+    #print("start")
+    #print(xn)
+    #print(":)")
+    #print((-1)*xn)
+    #print(":)")
+    #print(np.exp((-1)*xn))
+    #print(":)")
+    #print(1+np.exp((-1)*xn))
+    #print(":)")
 
-    sigma = 1 / (1 + np.exp(-xn))
+    sigma = 1 / (1 + np.exp((-1)*xn))
+    #print(sigma)
+    #print(":)")
 
-    cross_entropy = np.sum((-y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
+    #print(1-sigma)
+
+    cross_entropy = np.sum(((-1)*y*np.log(sigma) - (1 - y)*np.log(1-sigma)))
     cross_entropy /= num_train_ex
 
     #regularization
@@ -94,9 +118,9 @@ def gradCE(W, b, x, y, reg):
 
     sigma = (1 / (1 + np.exp(xn)))
 
-    e_in = -y*sigma + (1 - y)*sigma*np.exp(xn)
+    e_in = (-1)*y*sigma + (1 - y)*sigma*np.exp(xn)
     grad_W = np.matmul(X_aux.transpose(), e_in)/num_train_ex + reg*W_aux
-    print(grad_W)
+    #print(grad_W)
 
     grad_b = np.sum(e_in)/num_train_ex
 
@@ -104,16 +128,28 @@ def gradCE(W, b, x, y, reg):
 
 def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS, lossType="None"):
     i = 0
-    error1 = float("inf")
-    error2 = 0
     iter_plt = []
     error_plt = []
-    while i  < iterations or abs(error1 - error2) <= EPS:
-        error1 = MSE(W, b, trainingData, trainingLabels, reg)
-        W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
+
+    error1 = float("inf")
+    error2 = 0   
+    b_grad = None
+    W_grad = None
+    while i < iterations or abs(error1 - error2) <= EPS:
+        if lossType == "MSE":
+            error1 = MSE(W, b, trainingData, trainingLabels, reg)
+            W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
+        elif lossType == "CE":
+            error1 = crossEntropyLoss(W, b, trainingData, trainingLabels, reg)
+            W_grad, b_grad = gradCE(W, b, trainingData, trainingLabels, reg)
+
         W = W - alpha*W_grad
         b = b - alpha*b_grad
-        error2 = MSE(W, b, trainingData, trainingLabels, reg)
+
+        if lossType == "MSE":
+            error2 = MSE(W, b, trainingData, trainingLabels, reg)
+        elif lossType == "CE":
+            error2 = crossEntropyLoss(W, b, trainingData, trainingLabels, reg)
 
         iter_plt.append(i)
         error_plt.append(error2)
@@ -127,16 +163,50 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
     return W, b
 
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
-    # Your implementation here
-    return
+    trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+    dim_x = trainData.shape[1]
+    dim_y = trainData.shape[2]
+
+    tf.set_random_seed(421)
+    W_shape = (dim_x*dim_y, 1)
+
+    W = tf.truncated_normal(shape=W_shape, stddev=0.5)    
+    b = tf.truncated_normal(stddev=0.5)
+
+    X = tf.placeholder(tf.float32)
+    Y = tf.placeholder(tf.float32)
+    lam = tf.placeholder(tf.float32)
+
+    predict = None
+    loss = None
+    if lossType == "MSE":
+        predict = tf.matmul(W, tf.transpose(X)) + b
+        loss = tf.losses.mean_squared_error(labels=Y, predictions=predict)
+    elif lossType == "CE":
+        logit = -1*(tf.matmul(W, tf.transpose(X)) + b)
+        predict = np.sigmoid(logit)
+        loss = tf.losses.sigmoid_cross_entropy(labels=Y, logits=logit)
+
+    train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss)
+
+    return W, b, predict, Y, loss, train_op, lam
+
+#def SDG(batchSize, iterations):
 
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
-W = np.array([[1,2],[3,4]])
-x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
-y = np.array([[1], [2], [1]])
-#print(gradCE(W, 1, x, y, 1))
-W = np.random.rand(trainData.shape[1], trainData.shape[2])
-alpha = 0.00001
-W, b = grad_descent(W , 0, trainData, trainTarget, alpha, 5000, 0, 1*10**(-7))
-W, b = grad_descent(W, b, validData, validTarget, alpha, 5000, 0, 1*10**(-7))
-grad_descent(W, b, testData, testTarget, alpha, 5000, 0, 1*10**(-7))
+#W = np.array([[1,2],[3,4]])
+#x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
+#y = np.array([[1], [0], [1]])
+#print(LeastSquares(trainData,trainTarget))
+
+print(trainTarget)
+
+#print(crossEntropyLoss(W, 1, x, y, 1))
+#W = np.random.rand(trainData.shape[1], trainData.shape[2])
+W = np.zeros((trainData.shape[1], trainData.shape[2]))
+alpha = 0.001
+lam = 0.1
+W, b = grad_descent(W , 0, trainData, trainTarget, alpha, 5000, lam, 1*10**(-7), lossType="CE")
+print(W, b.shape)
+#W, b = grad_descent(W, b, validData, validTarget, alpha, 5000, 0, 1*10**(-7))
+#grad_descent(W, b, testData, testTarget, alpha, 5000, 0, 1*10**(-7))
