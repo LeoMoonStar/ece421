@@ -1,4 +1,3 @@
-import tensorflow as tf
 import numpy as np
 #import matplotlib.pyplot as plt
 #Temp
@@ -136,15 +135,9 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
     b_grad = None
     W_grad = None
     while i < iterations or abs(error1 - error2) <= EPS:
-        if lossType == "MSE":
-            error1 = MSE(W, b, trainingData, trainingLabels, reg)
-            W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
-        elif lossType == "CE":
-            error1 = crossEntropyLoss(W, b, trainingData, trainingLabels, reg)
-            W_grad, b_grad = gradCE(W, b, trainingData, trainingLabels, reg)
-
         W = W - alpha*W_grad
         b = b - alpha*b_grad
+        error1 = error2
 
         if lossType == "MSE":
             error2 = MSE(W, b, trainingData, trainingLabels, reg)
@@ -155,12 +148,10 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
         error_plt.append(error2)
         if i % 1000 == 0:
             print(error2)
+
         #print(error)
         i += 1
-    plt.plot(iter_plt, error_plt, 'ro')
-    plt.axis([0, len(iter_plt), 0, max(error_plt)])
-    plt.show()
-    return W, b
+    return W, b, error_plt, iter_plt
 
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
@@ -210,6 +201,23 @@ def SGD(batchSize, iterations):
             _, c = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch})
     return
 
+
+#plotting
+trainingData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+W = np.zeros((trainData.shape[1], trainData.shape[2]))
+b = 0
+alpha = 0.001
+lam = 0
+
+plt.figure(1)
+W, b, e_arr, i_arr = grad_descent(W, b, trainData, trainTarget, alpha, 5000, lam, 1*10**(-7), lossType="MSE")
+plt.plot(iter_plt, error_plt, 'g-')
+e_arr, i_arr = grad_descent(W, b, validData, validTarget, alpha, 5000, lam, 1*10**(-7), lossType="MSE")
+plt.plot(iter_plt, error_plt, 'b-')
+e_arr, i_arr = grad_descent(W, b, testData, testTarget, alpha, 5000, lam, 1*10**(-7), lossType="MSE")
+plt.plot(iter_plt, error_plt, 'r-')
+plt.show()
+
 #trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 #W = np.array([[1,2],[3,4]])
 #x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
@@ -230,5 +238,5 @@ def SGD(batchSize, iterations):
 #grad_descent(W, b, testData, testTarget, alpha, 5000, 0, 1*10**(-7))
 
 #print('TensorFlow version: {0}'.format(tf.__version__))
-SGD(500, 700)
+#SGD(500, 700)
 
