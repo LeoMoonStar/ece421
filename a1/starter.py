@@ -169,44 +169,67 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
 
     tf.set_random_seed(421)
     W_shape = (dim_x*dim_y, 1)
+    W = tf.get_variable("W", initializer=tf.truncated_normal(shape=W_shape, stddev=0.5))
+    b = tf.get_variable('b', initializer=tf.truncated_normal(shape=[1], stddev=0.5))
 
-    W = tf.truncated_normal(shape=W_shape, stddev=0.5)    
-    b = tf.truncated_normal(stddev=0.5)
-
-    X = tf.placeholder(tf.float32)
-    Y = tf.placeholder(tf.float32)
-    lam = tf.placeholder(tf.float32)
+    X = tf.placeholder(tf.float32, shape=W_shape, name="X")
+    Y = tf.placeholder(tf.float32, shape=(1, None), name="Y")
+    lam = tf.placeholder(tf.float32, shape=(1, None), name="lam")
 
     predict = None
     loss = None
     if lossType == "MSE":
-        predict = tf.matmul(W, tf.transpose(X)) + b
+        predict = tf.matmul(tf.transpose(W), X) + b
         loss = tf.losses.mean_squared_error(labels=Y, predictions=predict)
     elif lossType == "CE":
-        logit = -1*(tf.matmul(W, tf.transpose(X)) + b)
-        predict = np.sigmoid(logit)
-        loss = tf.losses.sigmoid_cross_entropy(labels=Y, logits=logit)
+        logit = -1*(tf.matmul(tf.transpose(W), X) + b)
+        predict = tf.sigmoid(logit)
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit)
 
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss)
 
     return W, b, predict, Y, loss, train_op, lam
 
-#def SDG(batchSize, iterations):
+def SGD(batchSize, iterations):
+    trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 
-trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+    batches = trainData.shape[0]/batchSize
+    W, b, predict, Y, loss, train_op, lam = buildGraph(beta1=0.9, beta2=0.999, epsilon=1e-08, lossType="CE", learning_rate=0.001)
+
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+
+    with tf.Session() as sess:
+        rand_i = np.random.choice(100, size=batchSize)
+
+        x_batch = trainData[rand_i]
+        y_batch = targetData[rand_i] 
+
+        for i in range(iterations):
+            sess.run(train_op, feed_dict={X:x_batch, Y:y_batch})
+
+    return
+
+#trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 #W = np.array([[1,2],[3,4]])
 #x = np.array([[[1,1],[1,1]],[[2,2],[2,2]],[[3,3],[3,3]]])
 #y = np.array([[1], [0], [1]])
 #print(LeastSquares(trainData,trainTarget))
 
-print(trainTarget)
+#print(trainTarget)
 
+#buildGraph(lossType = "MSE", learning_rate = 0.001)
 #print(crossEntropyLoss(W, 1, x, y, 1))
 #W = np.random.rand(trainData.shape[1], trainData.shape[2])
-W = np.zeros((trainData.shape[1], trainData.shape[2]))
-alpha = 0.001
-lam = 0.1
-W, b = grad_descent(W , 0, trainData, trainTarget, alpha, 5000, lam, 1*10**(-7), lossType="CE")
-print(W, b.shape)
+#W = np.zeros((trainData.shape[1], trainData.shape[2]))
+#alpha = 0.001
+#lam = 0.1
+#W, b = grad_descent(W , 0, trainData, trainTarget, alpha, 5000, lam, 1*10**(-7), lossType="CE")
+#print(W, b.shape)
 #W, b = grad_descent(W, b, validData, validTarget, alpha, 5000, 0, 1*10**(-7))
 #grad_descent(W, b, testData, testTarget, alpha, 5000, 0, 1*10**(-7))
+
+#print('TensorFlow version: {0}'.format(tf.__version__))
+SGD(500, 700)
+
