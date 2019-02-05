@@ -170,45 +170,44 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     tf.set_random_seed(421)
     W_shape = (dim_x*dim_y, 1)
     W = tf.get_variable("W", initializer=tf.truncated_normal(shape=W_shape, stddev=0.5))
-    b = tf.get_variable('b', initializer=tf.truncated_normal(shape=[1], stddev=0.5))
+    b = tf.get_variable("b", initializer=tf.truncated_normal(shape=[1], stddev=0.5))
 
-    X = tf.placeholder(tf.float32, shape=W_shape, name="X")
-    Y = tf.placeholder(tf.float32, shape=(1, None), name="Y")
+    X = tf.placeholder(tf.float32, shape=(500, dim_x*dim_y), name="X")
+    Y = tf.placeholder(tf.float32, shape=(500, 1), name="Y")
     lam = tf.placeholder(tf.float32, shape=(1, None), name="lam")
 
     predict = None
     loss = None
     if lossType == "MSE":
-        predict = tf.matmul(tf.transpose(W), X) + b
+        predict = tf.matmul(X, W) + b
         loss = tf.losses.mean_squared_error(labels=Y, predictions=predict)
     elif lossType == "CE":
-        logit = -1*(tf.matmul(tf.transpose(W), X) + b)
+        logit = -1*(tf.matmul(X, W) + b)
         predict = tf.sigmoid(logit)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit)
 
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss)
 
-    return W, b, predict, Y, loss, train_op, lam
+    return W, b, predict, Y, X, loss, train_op, lam
 
 def SGD(batchSize, iterations):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 
     batches = trainData.shape[0]/batchSize
-    W, b, predict, Y, loss, train_op, lam = buildGraph(beta1=0.9, beta2=0.999, epsilon=1e-08, lossType="CE", learning_rate=0.001)
+    W, b, predict, Y, X, loss, train_op, lam = buildGraph(beta1=0.9, beta2=0.999, epsilon=1e-08, lossType="CE", learning_rate=0.001)
+    losses = []
 
-    init = tf.global_variables_initializer()
-    sess = tf.Session()
-    sess.run(init)
 
     with tf.Session() as sess:
-        rand_i = np.random.choice(100, size=batchSize)
-
-        x_batch = trainData[rand_i]
-        y_batch = targetData[rand_i] 
+        init = tf.global_variables_initializer()
+        sess.run(init)
 
         for i in range(iterations):
-            sess.run(train_op, feed_dict={X:x_batch, Y:y_batch})
+            rand_i = np.random.choice(100, size=batchSize)
 
+            x_batch = trainData[rand_i].reshape((batchSize, trainData.shape[1]*trainData.shape[2]))
+            y_batch = trainTarget[rand_i].reshape((batchSize, 1))
+            _, c = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch})
     return
 
 #trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
