@@ -173,9 +173,9 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
             error_valid = MSE(W, b, validData, validLabels, reg)
             error_test = MSE(W, b, testData, testLabels, reg)
 
-            acc_train = accuracy(MSE_predict(W, trainingData, b), trainingLabels)
-            acc_valid = accuracy(MSE_predict(W, validData, b), b, validLabels)
-            acc_test = accuracy(MSE_predict(W, testData, b), b, testLabels)
+            acc_train = accuracy(MSE_predict(W, b, trainingData), trainingLabels)
+            acc_valid = accuracy(MSE_predict(W, b, validData), validLabels)
+            acc_test = accuracy(MSE_predict(W, b, testData), testLabels)
 
             W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
         elif lossType == "CE":
@@ -183,9 +183,9 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
             error_valid = crossEntropyLoss(W, b, validData, validLabels, reg)
             error_test = crossEntropyLoss(W, b, testData, testLabels, reg)
 
-            acc_train = accuracy(CE_predict(W, trainingData, b), trainingLabels)
-            acc_valid = accuracy(CE_predict(W, validData, b), validLabels)
-            acc_test = accuracy(CE_predict(W, testData, b), b, testLabels)
+            acc_train = accuracy(CE_predict(W, b, trainingData), trainingLabels)
+            acc_valid = accuracy(CE_predict(W, b, validData), validLabels)
+            acc_test = accuracy(CE_predict(W, b, testData), testLabels)
 
             W_grad, b_grad = gradCE(W, b, trainingData, trainingLabels, reg)
 
@@ -534,27 +534,31 @@ def main():
 
 
     plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
-    plotFigures(name2, "Error", "Epoch", iter_plt, y2, 2)
+    plotFigures(name2, "Accuracy", "Epoch", iter_plt, y2, 4)
     '''
     #####
     #2.3#
     #####
     #SGD(500, 700, "MSE")
-    SGD(500, 700, "CE")
-    # alpha = 0.005
-    # #Logistic Regression
-    # train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
-    # train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
-    #
-    # name1 = "Logistic Regression"
-    # name2 = "Cross Entropy Loss"
-    #
-    # y1 = [(train1, 'lambda = 0.001', 'r-'), \
-    #       (train2, 'lambda = 0.1', 'g-'), \
-    #       (train3, 'lambda = 0.5', 'b-')]
-    # plotFigures(name1, "Error", "Epoch", iter_plt1, y1, 2)
+    #SGD(500, 700, "CE")
+    alpha = 0.005
+    #Logistic Regression
+    train1, valid1, test1, atrain1, avalid1, atest1, iter_plt1 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, 0, 1*10**(-7), lossType="MSE")
+    train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, 0, 1*10**(-7), lossType="CE")
+    
+    name1 = "Logistic Regression"
+    name2 = "Cross Entropy Loss"
+    
+    y1 = [(train1, 'train', 'r-'), \
+          (valid1, 'valid', 'g-'), \
+          (test1, 'test', 'b-')]
+    y2 = [(train2, 'train', 'r-'), \
+          (valid2, 'valid', 'g-'), \
+          (test2, 'test', 'b-')]
+    plotFigures(name1, "Error", "Epoch", iter_plt1, y1, 2)
+    plotFigures(name2, "Error", "Epoch", iter_plt1, y2, 2)
     plt.show()
 
 
