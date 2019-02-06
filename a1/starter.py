@@ -442,7 +442,7 @@ def main():
     #####
     #1.4 - with graphing#
     #####
-    
+    '''
     alpha = 0.005
     lam = 0.001
     train1, valid1, test1, atrain1, avalid1, atest1, iter_plt1  = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
@@ -487,7 +487,7 @@ def main():
     plotFigures(name2, "Error", "Epoch", iter_plt3, y2, 2)
     plotFigures(name3, "Error", "Epoch", iter_plt3, y3, 2)
 
-    
+    '''
     #####
     #1.5#
     #####
