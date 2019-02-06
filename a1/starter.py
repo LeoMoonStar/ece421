@@ -192,7 +192,8 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
             print(error2)
         i += 1
 
-    y1 = [(error_train_plt, 'training', 'r-'), \
+
+    '''y1 = [(error_train_plt, 'training', 'r-'), \
          (error_valid_plt, 'valid', 'g-'), \
          (error_test_plt, 'test', 'b-')]
     y2 = [(acc_train_plt, 'training', 'r-'), \
@@ -203,7 +204,9 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
 
     plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
     plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
-    return W, b
+    return W, b'''
+
+    return error_train_plt, error_valid_plt, error_test_plt, acc_train_plt, acc_valid_plt, acc_test_plt, iter_plt
 
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
@@ -281,13 +284,14 @@ def SGD(batchSize, iterations, type):
             l_t, a_t = SGDBatchs(testBatches, testTarget, trainTarget, \
                 batchSize, sess, train_op, loss, acc)
 
-    iter_plt1 = range(iterations*)
+    iter_plt1 = range(iterations)#*)
     y1 = [(l_train, 'training', 'r-'), \
          (l_valid, 'valid', 'g-'), \
          (l_test, 'test', 'b-')]
     y2 = [(a_train, 'training', 'r-'), \
          (a_valid, 'valid', 'g-'), \
          (a_test, 'test', 'b-')]
+
     name1 = "Training error of " + type + " per epoch"
     name2 = "accuracy of " + type + " per epoch"
 
@@ -305,20 +309,76 @@ def main():
     #####
     #1.3#
     #####
-    # alpha = 0.005
-    # lam = 0
-    # W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+    '''alpha = 0.005
+    lam = 0
+    W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
 
-    # alpha = 0.001
-    # lam = 0
-    # W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+    alpha = 0.001
+    lam = 0
+    W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
 
-    # alpha = 0.0001
-    # lam = 0
-    # W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+    alpha = 0.0001
+    lam = 0
+    W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")'''
+
+    #####
+    #1.3 - seperate graphs on Alphas#
+    #####
+    alpha = 0.005
+    lam = 0
+    train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    name1 = "Training error of Training data of MSE per epoch"
+    name2 = "Training error of Valid data of MSE per epoch"
+    name3 = "Training error of Test data of MSE per epoch"
+    name4 = "Accuracy of MSE of Training data per epoch"
+    name5 = "Accuracy of MSE of Valid data per epoch"
+    name6 = "Accuracy of MSE of Test data per epoch"
+
+    
+    alpha = 0.001
+    lam = 0
+    train2, valid2, test2, atrain2, avalid2, atest2, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    alpha = 0.0001
+    lam = 0
+    train3, valid3, test3, atrain3, avalid3, atest3, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    y1 = [(train1, 'alpha = 0.005', 'r-'), \
+         (train2, 'alpha = 0.001', 'g-'), \
+         (train3, 'alpha = 0.0001', 'b-')]
+    y2 = [(valid1, 'alpha = 0.005', 'r-'), \
+         (valid2, 'alpha = 0.001', 'g-'), \
+         (valid3, 'alpha = 0.0001', 'b-')]
+    y3 = [(test1, 'alpha = 0.005', 'r-'), \
+         (test2, 'alpha = 0.001', 'g-'), \
+         (test3, 'alpha = 0.0001', 'b-')]
+
+    y4 = [(atrain1, 'alpha = 0.005', 'r-'), \
+         (atrain2, 'alpha = 0.001', 'g-'), \
+         (atrain3, 'alpha = 0.0001', 'b-')]
+    y5 = [(avalid1, 'alpha = 0.005', 'r-'), \
+         (avalid2, 'alpha = 0.001', 'g-'), \
+         (avalid3, 'alpha = 0.0001', 'b-')]
+    y6 = [(atest1, 'alpha = 0.005', 'r-'), \
+         (atest2, 'alpha = 0.001', 'g-'), \
+         (atest3, 'alpha = 0.0001', 'b-')]
+
+    
+    plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
+    plotFigures(name2, "epoch", "error", iter_plt, y2, 2)
+    plotFigures(name3, "epoch", "error", iter_plt, y3, 2)
+    plotFigures(name4, "epoch", "error", iter_plt, y4, 4)
+    plotFigures(name5, "epoch", "error", iter_plt, y5, 5)
+    plotFigures(name6, "epoch", "error", iter_plt, y6, 6)
+
+    #plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
 
     #####
     #1.4#
@@ -341,6 +401,7 @@ def main():
     #####
     #1.5#
     #####
+
 
     #####
     #2.2#
