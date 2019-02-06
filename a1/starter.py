@@ -428,7 +428,7 @@ def main():
     #####
     #1.4 - with graphing#
     #####
-    '''
+    
     alpha = 0.005
     lam = 0.001
     train1, valid1, test1, atrain1, avalid1, atest1, iter_plt1  = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
@@ -445,29 +445,40 @@ def main():
     train3, valid3, test3, atrain3, avalid3, atest3, iter_plt3  = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
         testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
 
+    t1 = train1[:len(train3)]
+    t2 = train2[:len(train3)]
+    v1 = valid1[:len(valid3)]
+    v2 = valid2[:len(valid3)]
+    te1 = test1[:len(test3)]
+    te2 = test2[:len(test3)]
+
     name1 = "Error of training data using MSE per epoch"
     name2 = "Error of valid data using MSE per epoch"
     name3 = "Error of test data using MSE per epoch"
-    y1 = [(train1, 'lambda = 0.001', 'r-'), \
-          (train2, 'lambda = 0.1', 'g-'), \
+    y1 = [(t1, 'lambda = 0.001', 'r-'), \
+          (t2, 'lambda = 0.1', 'g-'), \
           (train3, 'lambda = 0.5', 'b-')]
-    y2 = [(valid1, 'lambda = 0.001', 'r-'), \
-         (valid2, 'lambda = 0.1', 'g-'), \
+    y2 = [(v1, 'lambda = 0.001', 'r-'), \
+         (v2, 'lambda = 0.1', 'g-'), \
          (valid3, 'lambda = 0.5', 'b-')]
-    y3 = [(test1, 'lambda = 0.001', 'r-'), \
-         (test2, 'lambda = 0.1', 'g-'), \
+    y3 = [(te1, 'lambda = 0.001', 'r-'), \
+         (te2, 'lambda = 0.1', 'g-'), \
          (test3, 'lambda = 0.5', 'b-')]
-    print(len(train1))
+    print(len(t1))
+    print(len(t2))
+    print(len(train3))
+    print(len(iter_plt3))
 
     plotFigures(name1, "Error", "Epoch", iter_plt3, y1, 2)
     plotFigures(name2, "Error", "Epoch", iter_plt3, y2, 2)
     plotFigures(name3, "Error", "Epoch", iter_plt3, y3, 2)
 
-
+    
     #####
     #1.5#
     #####
     #Edit return values before USING
+    '''
     starttime = os.times()[0]
     W = LeastSquares(trainData, trainTarget)
     error1 = MSE(W, 0, trainData, trainTarget, 0)
@@ -485,13 +496,13 @@ def main():
     print(GDtime)
     print(error1)
     print(error2)
-
-    '''
+    '''    
 
     #####
     #2.2#
     #####
-    '''    alpha = 0.005
+    '''
+    alpha = 0.005
     lam = 0.1
     train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
         testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
@@ -505,7 +516,7 @@ def main():
          (test1, 'Test', 'b-')]
     y2 = [(atrain1, 'Training', 'r-'), \
          (avalid1, 'Valid', 'g-'), \
-         (atest, 'Test', 'b-')]
+         (atest1, 'Test', 'b-')]
 
 
     plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
@@ -514,7 +525,7 @@ def main():
     #####
     #2.3#
     #####
-    SGD(500, 700, "MSE")
+    #SGD(500, 700, "MSE")
     #SGD(500, 700, "CE")
     # alpha = 0.005
     # #Logistic Regression
