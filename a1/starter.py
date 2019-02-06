@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 figure_num = 1
 #Temp
@@ -157,7 +158,7 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
 
     b_grad = None
     W_grad = None
-    while i < iterations or abs(error1 - error2) <= EPS:
+    while i < iterations and abs(error1 - error2) >= EPS:
         error1 = error2
 
         if lossType == "MSE":
@@ -327,17 +328,17 @@ def main():
     #####
     #1.3 - seperate graphs on Alphas#
     #####
-    alpha = 0.005
+    '''alpha = 0.005
     lam = 0
     train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
         testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
 
-    name1 = "Training error of Training data of MSE per epoch"
-    name2 = "Training error of Valid data of MSE per epoch"
-    name3 = "Training error of Test data of MSE per epoch"
-    name4 = "Accuracy of MSE of Training data per epoch"
-    name5 = "Accuracy of MSE of Valid data per epoch"
-    name6 = "Accuracy of MSE of Test data per epoch"
+    name1 = "Error of training data using MSE per epoch"
+    name2 = "Error of valid data using MSE per epoch"
+    name3 = "Error of test data using MSE per epoch"
+    name4 = "Accuracy of MSE using training data per epoch"
+    name5 = "Accuracy of MSE using valid data per epoch"
+    name6 = "Accuracy of MSE using test data per epoch"
 
     
     alpha = 0.001
@@ -371,14 +372,14 @@ def main():
          (atest3, 'alpha = 0.0001', 'b-')]
 
     
-    plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
-    plotFigures(name2, "epoch", "error", iter_plt, y2, 2)
-    plotFigures(name3, "epoch", "error", iter_plt, y3, 2)
-    plotFigures(name4, "epoch", "error", iter_plt, y4, 4)
-    plotFigures(name5, "epoch", "error", iter_plt, y5, 5)
-    plotFigures(name6, "epoch", "error", iter_plt, y6, 6)
+    plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
+    plotFigures(name2, "Error", "Epoch", iter_plt, y2, 2)
+    plotFigures(name3, "Error", "Epoch", iter_plt, y3, 2)
+    plotFigures(name4, "Accuracy", "Epoch", iter_plt, y4, 4)
+    plotFigures(name5, "Accuracy", "Epoch", iter_plt, y5, 5)
+    plotFigures(name6, "Accuracy", "Epoch", iter_plt, y6, 6)
 
-    #plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
+    #plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)'''
 
     #####
     #1.4#
@@ -398,19 +399,115 @@ def main():
     # W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
     #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
 
+
+    #####
+    #1.4 - with graphing#
+    #####
+    '''
+    alpha = 0.005
+    lam = 0.001
+    train1, valid1, test1, atrain1, avalid1, atest1, iter_plt1  = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    alpha = 0.005
+    lam = 0.1
+
+    train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    alpha = 0.005
+    lam = 0.5
+    train3, valid3, test3, atrain3, avalid3, atest3, iter_plt3  = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+
+    name1 = "Error of training data using MSE per epoch"
+    name2 = "Error of valid data using MSE per epoch"
+    name3 = "Error of test data using MSE per epoch"
+    y1 = [(train1, 'lambda = 0.001', 'r-'), \
+          (train2, 'lambda = 0.1', 'g-'), \
+          (train3, 'lambda = 0.5', 'b-')]
+    y2 = [(valid1, 'lambda = 0.001', 'r-'), \
+         (valid2, 'lambda = 0.1', 'g-'), \
+         (valid3, 'lambda = 0.5', 'b-')]
+    y3 = [(test1, 'lambda = 0.001', 'r-'), \
+         (test2, 'lambda = 0.1', 'g-'), \
+         (test3, 'lambda = 0.5', 'b-')]
+    print(len(train1))
+    
+    plotFigures(name1, "Error", "Epoch", iter_plt3, y1, 2)
+    plotFigures(name2, "Error", "Epoch", iter_plt3, y2, 2)
+    plotFigures(name3, "Error", "Epoch", iter_plt3, y3, 2)
+
+   
     #####
     #1.5#
     #####
+    #Edit return values before USING
+    starttime = os.times()[0]
+    W = LeastSquares(trainData, trainTarget)
+    error1 = MSE(W, 0, trainData, trainTarget, 0)
+    endtime = os.times()[0]
+    LStime = endtime - starttime
 
+    starttime = os.times()[0]
+    W, b = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, 0.005, iterations, 0, 1*10**(-7), lossType="MSE")
+    error2 = MSE(W, b, trainData, trainTarget, 0)
+    endtime = os.times()[0]
+    GDtime = endtime - starttime
+
+    print(LStime)
+    print(GDtime)
+    print(error1)
+    print(error2)
+    
+    '''
 
     #####
     #2.2#
     #####
+    '''    alpha = 0.005
+    lam = 0.1
+    train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
 
+    name1 = "Error of training data using CE per epoch"
+    name2 = "Accuracy of CE using training data per epoch"
+
+
+    y1 = [(train1, 'Training', 'r-'), \
+         (valid1, 'Valid', 'g-'), \
+         (test1, 'Test', 'b-')]
+    y2 = [(atrain1, 'Training', 'r-'), \
+         (avalid1, 'Valid', 'g-'), \
+         (atest, 'Test', 'b-')]
+
+    
+    plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
+    plotFigures(name2, "Error", "Epoch", iter_plt, y2, 2)
+    '''
     #####
     #2.3#
     #####
+    '''
+    alpha = 0.005
+    #Logistic Regression
+    train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="MSE")
+    train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
+
+    name1 = "Logistic Regression"
+    name2 = "Cross Entropy Loss"
+
+    y1 = [(train1, 'lambda = 0.001', 'r-'), \
+          (train2, 'lambda = 0.1', 'g-'), \
+          (train3, 'lambda = 0.5', 'b-')]
+    plotFigures(name1, "Error", "Epoch", iter_plt1, y1, 2)
+
+
     # SGD(500, 700, "MSE")
+    '''
     plt.show()
 
 
