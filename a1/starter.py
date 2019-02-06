@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import time
 
 figure_num = 1
 #Temp
@@ -173,9 +174,9 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
             error_valid = MSE(W, b, validData, validLabels, reg)
             error_test = MSE(W, b, testData, testLabels, reg)
 
-            acc_train = accuracy(MSE_predict(W, trainingData, b), trainingLabels)
-            acc_valid = accuracy(MSE_predict(W, validData, b), b, validLabels)
-            acc_test = accuracy(MSE_predict(W, testData, b), b, testLabels)
+            acc_train = accuracy(MSE_predict(W, b, trainingData), trainingLabels)
+            acc_valid = accuracy(MSE_predict(W, b, validData), validLabels)
+            acc_test = accuracy(MSE_predict(W, b, testData), testLabels)
 
             W_grad, b_grad = gradMSE(W, b, trainingData, trainingLabels, reg)
         elif lossType == "CE":
@@ -183,9 +184,9 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
             error_valid = crossEntropyLoss(W, b, validData, validLabels, reg)
             error_test = crossEntropyLoss(W, b, testData, testLabels, reg)
 
-            acc_train = accuracy(CE_predict(W, trainingData, b), trainingLabels)
-            acc_valid = accuracy(CE_predict(W, validData, b), validLabels)
-            acc_test = accuracy(CE_predict(W, testData, b), b, testLabels)
+            acc_train = accuracy(CE_predict(W, b, trainingData), trainingLabels)
+            acc_valid = accuracy(CE_predict(W, b, validData), validLabels)
+            acc_test = accuracy(CE_predict(W, b, testData), testLabels)
 
             W_grad, b_grad = gradCE(W, b, trainingData, trainingLabels, reg)
 
@@ -220,18 +221,18 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
 
     return error_train_plt, error_valid_plt, error_test_plt, acc_train_plt, acc_valid_plt, acc_test_plt, iter_plt
 
-def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
+def buildGraph(batchSize, beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     dim_x = trainData.shape[1]
     dim_y = trainData.shape[2]
 
     tf.set_random_seed(421)
-    W_shape = (dim_x*dim_y, 1)
-    W = tf.get_variable("W", initializer=tf.truncated_normal(shape=W_shape, stddev=0.5))
+    W_shape = (dim_x*dim_y, None)
+    W = tf.get_variable("W", initializer=tf.truncated_normal(shape=[dim_x*dim_y, 1], stddev=0.5))
     b = tf.get_variable("b", initializer=tf.truncated_normal(shape=[], stddev=0.5))
 
-    X = tf.placeholder(tf.float32, shape=(500, dim_x*dim_y), name="X")
-    Y = tf.placeholder(tf.float32, shape=(500, None), name="Y")
+    X = tf.placeholder(tf.float32, shape=(batchSize, dim_x*dim_y), name="X")
+    Y = tf.placeholder(tf.float32, shape=(batchSize, None), name="Y")
     lam = tf.placeholder(tf.float32, shape=None, name="lam")
 
     predict = None
@@ -240,9 +241,9 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
         predict = tf.matmul(X, W) + b
         loss = tf.losses.mean_squared_error(labels=Y, predictions=predict)
     elif lossType == "CE":
-        logit = (tf.matmul(X, W) + b)
+        logit = tf.matmul(X, W) + b
         predict = tf.sigmoid(logit)
-        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit))
+        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit))/batchSize
     #print(loss.shape)
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss + lam/2*tf.matmul(tf.transpose(W), W))
     #acc = tf.count_nonzero(tf.greater(predict, 0.5))/predict.shape[0]
@@ -250,33 +251,29 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
 
     return W, b, predict, Y, X, loss, train_op, lam
 
-def SGDBatches(it, X_d, Y_d, batchSize, lam, sess, X, Y, W, b, train_op, loss, type):
+def SGDBatches(it, X_d, Y_d, batchSize, reg, lam, sess, X, Y, W, b, train_op, loss, type):
     #print(X_d.shape[0])
     data_shape = (batchSize, X_d.shape[1]*X_d.shape[2])
     target_shape = (batchSize, 1)
-    losses = []
-    accuracies = []
+    weights = None
+    bias = None
     a = 0
     for i in range(it):
         x_batch = X_d[i*batchSize:(i+1)*batchSize].reshape(data_shape)
         y_batch = Y_d[i*batchSize:(i+1)*batchSize].reshape(target_shape)
-        _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch, lam:0})
-        weights, bias = sess.run([W, b], feed_dict={X:x_batch, Y:y_batch, lam:0})
+        _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch, lam:reg})
+        weights, bias = sess.run([W, b], feed_dict={X:x_batch, Y:y_batch, lam:reg})
         if type == "CE":
             a = accuracy(CE_predict(weights, bias, X_d[i*batchSize:(i+1)*batchSize]), y_batch)
         elif type == "MSE":
             a = accuracy(MSE_predict(weights, bias, X_d[i*batchSize:(i+1)*batchSize]), y_batch)
-        losses.append(l)
-        accuracies.append(a)
-        # _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch})
-        # l = 0
-        # losses.append(l)
+        losses = l
 
-    return losses, accuracies
+    return losses, a, weights, bias
 
-def SGD(batchSize, iterations, type):
+def SGD(batchSize, iterations, type, beta1=0.9, beta2=0.999, epsilon=1e-08):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
-    W, b, predict, Y, X, loss, train_op, lam = buildGraph(beta1=0.9, beta2=0.999, epsilon=1e-08, lossType=type, learning_rate=0.001)
+    W, b, predict, Y, X, loss, train_op, lam = buildGraph(batchSize, beta1=beta1, beta2=beta2, epsilon=epsilon, lossType=type, learning_rate=0.001)
 
     l_train = []
     l_valid = []
@@ -287,6 +284,11 @@ def SGD(batchSize, iterations, type):
     trainBatches = int(trainData.shape[0]/batchSize)
     validBatches = int(validData.shape[0]/batchSize)
     testBatches = int(testData.shape[0]/batchSize)
+    error_valid = 0
+    error_test = 0
+    acc_valid = 0
+    acc_test = 0
+    reg = 0
 
     with tf.Session() as sess:
         #sess.run(tf.local_variables_initializer())
@@ -304,36 +306,49 @@ def SGD(batchSize, iterations, type):
             validTarget = validTarget[i_valid]
             testTarget = testTarget[i_test]
 
-            l_t, a_t = \
-                SGDBatches(trainBatches, trainData, trainTarget, batchSize, lam, \
-                    sess, X, Y, W, b, train_op, loss, type)
-            l_v, a_v = \
-                SGDBatches(validBatches, validData, validTarget, batchSize, lam, \
-                    sess, X, Y, W, b, train_op, loss, type)
-            l_te, a_te = \
-                SGDBatches(testBatches, testData, testTarget, batchSize, lam, \
+            losses, accur, weight, bias = SGDBatches(trainBatches, trainData, trainTarget, batchSize, reg, lam, \
                     sess, X, Y, W, b, train_op, loss, type)
 
-            l_train.append(l_t[-1])
-            # l_valid.append(l_v[-1])
-            # l_test.append(l_te[-1])
+            # print(MSE_predict(weight, bias, validData))
+            # print(weight.shape)
 
-            a_train.append(a_t[-1])
-            # a_valid.append(a_v[-1])
-            # a_test.append(a_te[-1])
+            if type == "MSE":
+                error_valid = MSE(weight, bias, validData, validTarget, reg)
+                error_test = MSE(weight, bias, testData, testTarget, reg)
+                acc_valid = accuracy(MSE_predict(weight, bias, validData), validTarget)
+                acc_test = accuracy(MSE_predict(weight, bias, testData), testTarget)
+            elif type == "CE":
+                error_valid = crossEntropyLoss(weight, bias, validData, validTarget, reg)
+                #print(error_valid)
+                error_test = crossEntropyLoss(weight, bias, testData, testTarget, reg)
+                #print(error_test)
+                acc_valid = accuracy(CE_predict(weight, bias, validData), validTarget)
+                acc_test = accuracy(CE_predict(weight, bias, testData), testTarget)
+            # print(losses.shape)
+            # print(losses)
+            #wait = input("PRESS ENTER TO CONTINUE.")
+            l_train.append(losses)
+            l_valid.append(error_valid)
+            l_test.append(error_test)
+
+            a_train.append(accur)
+            a_valid.append(acc_valid)
+            a_test.append(acc_test)
 
     iter_plt = range(iterations)
     #print(len(l_train), l_train)
-    y1 = [(l_train, 'training', 'r-')]
-    # y1 = [(l_train, 'training', 'r-'), \
-    #      (l_valid, 'valid', 'g-'), \
-    #      (l_test, 'test', 'b-')]
-    y2 = [(a_train, 'training', 'r-')]
-    # y2 = [(a_train, 'training', 'r-'), \
-    #      (a_valid, 'valid', 'g-'), \
-    #      (a_test, 'test', 'b-')]
-    name1 = "Training error of " + type + " per epoch"
-    name2 = "accuracy of " + type + " per epoch"
+    #y1 = [(l_train, 'training', 'r-')]
+    y1 = [(l_train, 'training', 'r-'), \
+         (l_valid, 'valid', 'g-'), \
+         (l_test, 'test', 'b-')]
+    #y2 = [(a_train, 'training', 'r-')]
+    y2 = [(a_train, 'training', 'r-'), \
+         (a_valid, 'valid', 'g-'), \
+         (a_test, 'test', 'b-')]
+
+    prefix = "batch size:" + str(batchSize) + ", beta1: " + str(beta1) + ", beta2: " + str(beta2) + ", epsilon: " + str(epsilon)
+    name1 = "Training error of " + type + " per epoch with \n" + prefix
+    name2 = "accuracy of " + type + " per epoch with \n" + prefix
 
     plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
     plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
@@ -515,32 +530,111 @@ def main():
     #####
     #2.2#
     #####
-    '''
-    alpha = 0.005
-    lam = 0.1
-    train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
-        testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
+    # alpha = 0.005
+    # lam = 0.1
+    # train1, valid1, test1, atrain1, avalid1, atest1, iter_plt = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
+    #     testData, testTarget, alpha, iterations, lam, 1*10**(-7), lossType="CE")
 
-    name1 = "Error of training data using CE per epoch"
-    name2 = "Accuracy of CE using training data per epoch"
-
-
-    y1 = [(train1, 'Training', 'r-'), \
-         (valid1, 'Valid', 'g-'), \
-         (test1, 'Test', 'b-')]
-    y2 = [(atrain1, 'Training', 'r-'), \
-         (avalid1, 'Valid', 'g-'), \
-         (atest1, 'Test', 'b-')]
+    # name1 = "Error of training data using CE per epoch"
+    # name2 = "Accuracy of CE using training data per epoch"
 
 
-    plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
-    plotFigures(name2, "Error", "Epoch", iter_plt, y2, 2)
-    '''
+    # y1 = [(train1, 'Training', 'r-'), \
+    #      (valid1, 'Valid', 'g-'), \
+    #      (test1, 'Test', 'b-')]
+    # y2 = [(atrain1, 'Training', 'r-'), \
+    #      (avalid1, 'Valid', 'g-'), \
+    #      (atest1, 'Test', 'b-')]
+
+
+    # plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
+    # plotFigures(name2, "Error", "Epoch", iter_plt, y2, 4)
+
     #####
-    #2.3#
+    #3.3#
     #####
-    #SGD(500, 700, "MSE")
-    SGD(500, 700, "CE")
+    # start = time.time()
+    # SGD(500, 700, "MSE")
+    # end = time.time()
+    # print(end - start)
+    #SGD(100, 700, "MSE")
+    #SGD(700, 700, "MSE")
+    #SGD(1750, 700, "MSE")
+
+    # start = time.time()
+    # SGD(500, 700, "CE")
+    # end = time.time()
+    # print(end - start)
+    #SGD(100, 700, "CE")
+    #SGD(700, 700, "CE")
+    #SGD(1750, 700, "CE")
+
+    #####
+    #3.4#
+    #####
+    # beta1 = 0.95
+    # beta2 = 0.999
+    # epsilon = 1e-08
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # beta1 = 0.99
+    # beta2 = 0.999
+    # epsilon = 1e-08
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.99
+    # epsilon = 1e-09
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.9999
+    # epsilon = 1e-08
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.999
+    # epsilon = 1e-09
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.999
+    # epsilon = 1e-04
+    # SGD(500, 700, "MSE", beta1, beta2, epsilon)
+
+    # #CE
+    # beta1 = 0.95
+    # beta2 = 0.999
+    # epsilon = 1e-08
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+    # beta1 = 0.99
+    # beta2 = 0.999
+    # epsilon = 1e-08
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.99
+    # epsilon = 1e-08
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.9999
+    # epsilon = 1e-08
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.999
+    # epsilon = 1e-09
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+    # beta1 = 0.9
+    # beta2 = 0.999
+    # epsilon = 1e-04
+    # SGD(500, 700, "CE", beta1, beta2, epsilon)
+
+
+
     # alpha = 0.005
     # #Logistic Regression
     # train2, valid2, test2, atrain2, avalid2, atest2, iter_plt2 = grad_descent(weights, bias, trainData, trainTarget, validData, validTarget, \
