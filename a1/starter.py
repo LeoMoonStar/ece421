@@ -525,7 +525,7 @@ def main():
     print(GDtime)
     print(error1)
     print(error2)
-    '''    
+    '''
 
     #####
     #2.2#
@@ -547,9 +547,9 @@ def main():
     #      (atest1, 'Test', 'b-')]
 
 
-    # plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
-    # plotFigures(name2, "Error", "Epoch", iter_plt, y2, 4)
-
+    plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
+    plotFigures(name2, "Accuracy", "Epoch", iter_plt, y2, 4)
+    '''
     #####
     #3.3#
     #####
@@ -645,10 +645,14 @@ def main():
     # name1 = "Logistic Regression"
     # name2 = "Cross Entropy Loss"
     #
-    # y1 = [(train1, 'lambda = 0.001', 'r-'), \
-    #       (train2, 'lambda = 0.1', 'g-'), \
-    #       (train3, 'lambda = 0.5', 'b-')]
+    # y1 = [(train1, 'train', 'r-'), \
+    #       (valid1, 'valid', 'g-'), \
+    #       (test1, 'test', 'b-')]
+    # y2 = [(train2, 'train', 'r-'), \
+    #       (valid2, 'valid', 'g-'), \
+    #       (test2, 'test', 'b-')]
     # plotFigures(name1, "Error", "Epoch", iter_plt1, y1, 2)
+    # plotFigures(name2, "Error", "Epoch", iter_plt1, y2, 2)
     plt.show()
 
 
