@@ -213,11 +213,11 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     tf.set_random_seed(421)
     W_shape = (dim_x*dim_y, 1)
     W = tf.get_variable("W", initializer=tf.truncated_normal(shape=W_shape, stddev=0.5))
-    b = tf.get_variable("b", initializer=tf.truncated_normal(shape=[1], stddev=0.5))
+    b = tf.get_variable("b", initializer=tf.truncated_normal(shape=[], stddev=0.5))
 
     X = tf.placeholder(tf.float32, shape=(500, dim_x*dim_y), name="X")
-    Y = tf.placeholder(tf.float32, shape=(500, 1), name="Y")
-    lam = tf.placeholder(tf.float32, shape=(1, None), name="lam")
+    Y = tf.placeholder(tf.float32, shape=(500, None), name="Y")
+    lam = tf.placeholder(tf.float32, shape=None, name="lam")
 
     predict = None
     loss = None
@@ -227,34 +227,38 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     elif lossType == "CE":
         logit = -1*(tf.matmul(X, W) + b)
         predict = tf.sigmoid(logit)
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit)
-
+        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=logit))
+    #print(loss.shape)
+    train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss + lam/2*tf.matmul(tf.transpose(W), W))
     acc = tf.count_nonzero(tf.greater(predict, 0.5))/predict.shape[0]
-    train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(loss)
+    #acc, acc_op = tf.metrics.accuracy(labels=tf.argmax(Y, 1), predictions=tf.argmax(predict, 1))
 
     return W, b, predict, Y, X, loss, train_op, acc, lam
 
-def SGDBatchs(it, X, Y, batchSize, sess, train_op, loss, acc):
-    data_shape = (batchSize, X.shape[1]*X.shape[2])
+def SGDBatches(it, X_d, Y_d, batchSize, lam, sess, X, Y, W, b, train_op, loss, acc):
+    #print(X_d.shape[0])
+    data_shape = (batchSize, X_d.shape[1]*X_d.shape[2])
     target_shape = (batchSize, 1)
     losses = []
-    acc = []
+    accuracies = []
 
     for i in range(it):
-        x_batch = X[i*batchSize:(i+1)*batchSize]
-        y_batch = Y[i*batchSize:(i+1)*batchSize]
-        _, l, a = sess.run([train_op, loss, acc], feed_dict={X:x_batch, Y:y_batch})
+        x_batch = X_d[i*batchSize:(i+1)*batchSize].reshape(data_shape)
+        y_batch = Y_d[i*batchSize:(i+1)*batchSize].reshape(target_shape)
+        _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch, lam:0})
+        weights, bias = sess.run([W, b], feed_dict={X:x_batch, Y:y_batch, lam:0})
+        a = accuracy(weights, X_d[i*batchSize:(i+1)*batchSize], bias, y_batch)
         losses.append(l)
-        acc.append(a)
+        accuracies.append(a)
+        # _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch})
+        # l = 0
+        # losses.append(l)
 
-    return losses, acc
+    return losses, accuracies
 
 def SGD(batchSize, iterations, type):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     W, b, predict, Y, X, loss, train_op, acc, lam = buildGraph(beta1=0.9, beta2=0.999, epsilon=1e-08, lossType=type, learning_rate=0.001)
-
-    data_shape = (batchSize, trainData.shape[1]*trainData.shape[2])
-    target_shape = (batchSize, 1)
 
     l_train = []
     l_valid = []
@@ -267,27 +271,49 @@ def SGD(batchSize, iterations, type):
     testBatches = int(testData.shape[0]/batchSize)
 
     with tf.Session() as sess:
-        init = tf.global_variables_initializer()
-        sess.run(init)
+        #sess.run(tf.local_variables_initializer())
+        sess.run(tf.global_variables_initializer())
         for i in range(iterations):
-            np.random.shuffle(trainData)
-            np.random.shuffle(validData)
-            np.random.shuffle(testData)
+            i_train = np.arange(trainData.shape[0]); np.random.shuffle(i_train)
+            i_valid = np.arange(validData.shape[0]); np.random.shuffle(i_valid)
+            i_test = np.arange(testData.shape[0]); np.random.shuffle(i_test)
 
-            l_t, a_t = SGDBatchs(trainBatches, trainData, trainTarget, \
-                batchSize, sess, train_op, loss, acc)
-            l_v, a_v = SGDBatchs(validBatches, validTarget, trainTarget, \
-                batchSize, sess, train_op, loss, acc)
-            l_t, a_t = SGDBatchs(testBatches, testTarget, trainTarget, \
-                batchSize, sess, train_op, loss, acc)
+            trainData = trainData[i_train]
+            validData = validData[i_valid]
+            testData = testData[i_test]
 
-    iter_plt1 = range(iterations*)
-    y1 = [(l_train, 'training', 'r-'), \
-         (l_valid, 'valid', 'g-'), \
-         (l_test, 'test', 'b-')]
-    y2 = [(a_train, 'training', 'r-'), \
-         (a_valid, 'valid', 'g-'), \
-         (a_test, 'test', 'b-')]
+            trainTarget = trainTarget[i_train]
+            validTarget = validTarget[i_valid]
+            testTarget = testTarget[i_test]
+
+            l_t, a_t = \
+                SGDBatches(trainBatches, trainData, trainTarget, batchSize, lam, \
+                    sess, X, Y, W, b, train_op, loss, acc)
+            l_v, a_v = \
+                SGDBatches(validBatches, validData, validTarget, batchSize, lam, \
+                    sess, X, Y, W, b, train_op, loss, acc)
+            l_te, a_te = \
+                SGDBatches(testBatches, testData, testTarget, batchSize, lam, \
+                    sess, X, Y, W, b, train_op, loss, acc)
+
+            l_train.append(l_t[-1])
+            # l_valid.append(l_v[-1])
+            # l_test.append(l_te[-1])
+
+            a_train.append(a_t[-1])
+            # a_valid.append(a_v[-1])
+            # a_test.append(a_te[-1])
+
+    iter_plt = range(iterations)
+    #print(len(l_train), l_train)
+    y1 = [(l_train, 'training', 'r-')]
+    # y1 = [(l_train, 'training', 'r-'), \
+    #      (l_valid, 'valid', 'g-'), \
+    #      (l_test, 'test', 'b-')]
+    y2 = [(a_train, 'training', 'r-')]
+    # y2 = [(a_train, 'training', 'r-'), \
+    #      (a_valid, 'valid', 'g-'), \
+    #      (a_test, 'test', 'b-')]
     name1 = "Training error of " + type + " per epoch"
     name2 = "accuracy of " + type + " per epoch"
 
@@ -349,7 +375,8 @@ def main():
     #####
     #2.3#
     #####
-    # SGD(500, 700, "MSE")
+    SGD(500, 700, "MSE")
+    #SGD(500, 700, "CE")
     plt.show()
 
 
