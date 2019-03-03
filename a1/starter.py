@@ -219,7 +219,8 @@ def grad_descent(W, b, trainingData, trainingLabels, validData, validLabels, tes
     plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
     return W, b'''
 
-    return error_train_plt, error_valid_plt, error_test_plt, acc_train_plt, acc_valid_plt, acc_test_plt, iter_plt
+    #return error_train_plt, error_valid_plt, error_test_plt, acc_train_plt, acc_valid_plt, acc_test_plt, iter_plt
+    return W, b
 
 def buildGraph(batchSize, beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
@@ -547,8 +548,8 @@ def main():
     #      (atest1, 'Test', 'b-')]
 
 
-    plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
-    plotFigures(name2, "Accuracy", "Epoch", iter_plt, y2, 4)
+    # plotFigures(name1, "Error", "Epoch", iter_plt, y1, 2)
+    # plotFigures(name2, "Accuracy", "Epoch", iter_plt, y2, 4)
     '''
     #####
     #3.3#
