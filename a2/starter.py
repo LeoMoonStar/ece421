@@ -91,14 +91,14 @@ def gradCE(target, prediction):
 
 def convolutional_layers(features, labels):
     # Input Layer
-    input = tf.reshape([-1, 28, 28, 1])
+    input = features.reshape((features.shape[0], features.shape[1]*features.shape[2]))
 
     # 3x3 convolution, 1 input, 32 outputs
-    w1 =  tf.get_variable("W1", shape=[784, 256], initializer=tf.contrib.layers.xavier_initializer())
-    b1 = tf.Variable(tf.random_normal([32]))
+    w1 = tf.get_variable("W1", dtype='float64', shape=[784, 256], initializer=tf.contrib.layers.xavier_initializer())
+    b1 = tf.Variable(tf.random_normal([256]))
 
     # Unsure if strides is correct/have not added the right [3,3]
-    x1 = tf.nn.conv2d(input, w1, strides=[1, 1, 0, 0], padding='SAME')
+    x1 = tf.nn.conv2d(input=input, filter=w1, strides=[1, 1], padding='SAME')
     print(x1)
     x1 = tf.nn.bias_add(x1, b1)
     print(x1)
