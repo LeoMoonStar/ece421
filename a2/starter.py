@@ -60,18 +60,22 @@ def computeLayer(X, W, b):
 #corresponds to
 def CE(target, prediction):
     N = target.shape[0]
-    np.apply_along_axis(softmax, 0, prediction)
-    log_soft = np.log(prediction)
-    return -1*np.sum(target*prediction)/N
+
+    #Apply softmax to the prediction values
+    # Is this getting the average though or just the CE?
+    sp = np.apply_along_axis(softmax, 0, prediction)
+    log_soft = np.log(sp)
+    return -1*np.sum(target*log_soft)/N
 
 def gradCE(target, prediction):
     N = target.shape[0]
     np.apply_along_axis(softmax, 0, prediction)
     return -1*np.sum(target*(1/prediction))
 
-
+print('hello')
 print(relu(np.array([1,2,3,-2,4])))
 print(softmax(np.array([1,2,3])))
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
-print(trainData.shape, trainTarget.shape)
-print(trainTarget)
+trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
+print(trainData.shape)
+print(CE(np.array([1,2,3,-2,4]), np.array([1,2,3,-2,4])))
