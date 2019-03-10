@@ -91,19 +91,17 @@ def gradCE(target, prediction):
 
 def convolutional_layers(features, labels):
     # Input Layer
-    input = features.reshape((features.shape[0], features.shape[1]*features.shape[2]))
+    input = tf.reshape(features, shape=[-1, 28, 28, 1])
 
     # 3x3 convolution, 1 input, 32 outputs
-    w1 = tf.get_variable("W1", dtype='float64', shape=[784, 256], initializer=tf.contrib.layers.xavier_initializer())
-    b1 = tf.Variable(tf.random_normal([256]))
-
-    # Unsure if strides is correct/have not added the right [3,3]
-    x1 = tf.nn.conv2d(input=input, filter=w1, strides=[1, 1], padding='SAME')
-    print(x1)
-    x1 = tf.nn.bias_add(x1, b1)
-    print(x1)
-    x1 = tf.nn.relu(x1)
-    print(x1)
+    W1 = tf.get_variable("W1", [3, 3, 1, 32], dtype='float64',initializer=tf.contrib.layers.xavier_initializer())
+    print(W1)
+    b1 = tf.get_variable('b1', [32], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    print(b1)
+    conv = tf.nn.conv2d(input, W1, strides=[1, 1, 1, 1], padding='SAME')
+    print(conv)
+    conv1 = tf.nn.relu(conv + b1, name='conv1')
+    print(conv1)
 
     '''# Convolutional Layer
     #conv1 = tf.keras.layers.Conv2D( inputs=input, filters=32, kernel_size=[3, 3], strides=[1, 1], activation=tf.nn.relu)
@@ -113,31 +111,29 @@ def convolutional_layers(features, labels):
     # Max Pooling (down-sampling)
     conv1 = maxpool2d(conv1, k=2)'''
 
-    # Batch Normalization layer - axes have not been properly intialized
-    #batch1 = tf.keras.layers.BatchNormalization(axis=1, input=conv1)
-    mean, variance = tf.nn.moments(x1, axes=[1])
-    xn = tf.nn.batch_normalization(x1, mean, variance)
+    # Batch Normalization layer
+    mean, variance = tf.nn.moments(conv1, axes=[0, 1, 2])
+    bn = tf.nn.batch_normalization(x=conv1, mean=mean, variance=variance, offset=None, scale=None, variance_epsilon=0.001)
 
+    # 2×2 max pooling layer
+    pool = tf.nn.max_pool(bn, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-    # Pooling Layer
-    #pool1 = tf.layers.max_pooling2d(inputs=batch1, pool_size=[2, 2])
-    xp1 = tf.nn.max_pool(xn, ksize=[1, 3, 3, 1], strides=[1, 1, 0, 0], padding='SAME')
+    # Flatten Layer
+    pool = tf.reshape(pool, [-1, 6272])
 
-    # Flatten Layer (Fix the reshape)
-    flat_pool1 = tf.reshape(xp1, [-1, 5 * 5 * 32])
-    w2 = tf.get_variable("W2", shape=[784, 256], initializer=tf.contrib.layers.xavier_initializer())
-    b2 = tf.Variable(tf.random_normal([32]))
+    # Fully connected layer relu
+    W2 = tf.get_variable('W2', [6272, 1024], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    b2 = tf.get_variable('b2', [1024], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
 
-    '''# Fully Connected Layer 1
-    fc1 = tf.keras.layers.Dense(input=flat_pool1, activation=tf.nn.relu, units=784)
+    # Fully connected layer with softmax
+    W3 = tf.get_variable('W3', [1024, 10], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    b3 = tf.get_variable('b3', [10], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    fc2 = tf.matmul(fc1, W3) + b3
 
-    # Fully Connected Layer 2
-    fc2 = tf.keras.layers.Dense(input=fc1, activation=tf.nn.softmax, units=10)'''
-    fc2 = xp1
-
-    # CE
-    #loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=
-    loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fc2)
+    # Loss with cross entropy
+    entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fc2)
+    loss = tf.reduce_mean(entropy)
 
     return loss
 
@@ -148,4 +144,4 @@ trainData, validData, testData, trainTarget, validTarget, testTarget = loadData(
 trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
 #print(trainData.shape)
 #print(CE(np.array([1,2,3,-2,4]), np.array([1,2,3,-2,4])))
-convolutional_layers(trainData, trainTarget)
+print(convolutional_layers(trainData, trainTarget))
