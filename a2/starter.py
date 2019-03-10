@@ -95,21 +95,10 @@ def convolutional_layers(features, labels):
 
     # 3x3 convolution, 1 input, 32 outputs
     W1 = tf.get_variable("W1", [3, 3, 1, 32], dtype='float64',initializer=tf.contrib.layers.xavier_initializer())
-    print(W1)
     b1 = tf.get_variable('b1', [32], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
-    print(b1)
     conv = tf.nn.conv2d(input, W1, strides=[1, 1, 1, 1], padding='SAME')
-    print(conv)
     conv1 = tf.nn.relu(conv + b1, name='conv1')
-    print(conv1)
 
-    '''# Convolutional Layer
-    #conv1 = tf.keras.layers.Conv2D( inputs=input, filters=32, kernel_size=[3, 3], strides=[1, 1], activation=tf.nn.relu)
-    conv1 = tf.nn.conv2d(inputs=input, )
-    # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=2)'''
 
     # Batch Normalization layer
     mean, variance = tf.nn.moments(conv1, axes=[0, 1, 2])
@@ -136,6 +125,140 @@ def convolutional_layers(features, labels):
     loss = tf.reduce_mean(entropy)
 
     return loss
+
+def plotFigures(title, x_label, y_label, x_arr, y_arr, legend):
+    global figure_num
+    plt.figure(figure_num)
+    plt.ylabel(x_label)
+    plt.xlabel(y_label)
+    plt.title(title)
+    for i in range(len(y_arr)):
+        y = y_arr[i][0]
+        plot_name = y_arr[i][1]
+        color = y_arr[i][2]
+        plt.plot(x_arr, y, color, label=plot_name)
+    plt.legend(loc=legend)
+    figure_num += 1
+
+def MSE_predict(W, b, x):
+    num_train_ex = x.shape[0]
+    num_pixels = x.shape[1]*x.shape[2]
+    W_aux = W.reshape((num_pixels, 1))
+    X_aux = x.reshape((num_train_ex, num_pixels))
+    y_hat = np.matmul(X_aux, W_aux) + b
+    return y_hat
+
+def CE_predict(W, b, x):
+    xn = MSE_predict(W, b, x)
+    y_hat = 1 / (1 + np.exp((-1)*xn))
+    return y_hat
+
+def accuracy(y_hat, y):
+    correct = 0
+    for i in range(y.shape[0]):
+        if (y_hat[i] > 0.5 and y[i] == 1) or \
+           (y_hat[i] < 0.5 and y[i] == 0):
+            correct += 1
+    return correct/y.shape[0]
+
+def SGDBatches(it, X_d, Y_d, batchSize, reg, lam, sess, train_op, loss):
+
+    data_shape = (batchSize, X_d.shape[1]*X_d.shape[2])
+    target_shape = (batchSize, 1)
+    weights = None
+    bias = None
+    a = 0
+    for i in range(it):
+        x_batch = X_d[i*batchSize:(i+1)*batchSize].reshape(data_shape)
+        y_batch = Y_d[i*batchSize:(i+1)*batchSize].reshape(target_shape)
+        _, l = sess.run([train_op, loss], feed_dict={X:x_batch, Y:y_batch, lam:reg})
+        weights, bias = sess.run([W, b], feed_dict={X:x_batch, Y:y_batch, lam:reg})
+        a = accuracy(CE_predict(weights, bias, X_d[i*batchSize:(i+1)*batchSize]), y_batch)
+
+        losses = l
+
+    return losses, a, weights, bias
+
+def SGD(batchSize, iterations, features, labels, beta1=0.9, beta2=0.999, epsilon=1e-04):
+    trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+    trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
+    train_op, loss = Model_Training(features, labels)
+
+    l_train = []
+    l_valid = []
+    l_test = []
+    a_train = []
+    a_valid = []
+    a_test = []
+    trainBatches = int(trainData.shape[0]/batchSize)
+    validBatches = int(validData.shape[0]/batchSize)
+    testBatches = int(testData.shape[0]/batchSize)
+    error_valid = 0
+    error_test = 0
+    acc_valid = 0
+    acc_test = 0
+    reg = 0
+    lam = 0
+
+    with tf.Session() as sess:
+        #sess.run(tf.local_variables_initializer())
+        sess.run(tf.global_variables_initializer())
+        for i in range(iterations):
+            i_train = np.arange(trainData.shape[0]); np.random.shuffle(i_train)
+            i_valid = np.arange(validData.shape[0]); np.random.shuffle(i_valid)
+            i_test = np.arange(testData.shape[0]); np.random.shuffle(i_test)
+
+            trainData = trainData[i_train]
+            validData = validData[i_valid]
+            testData = testData[i_test]
+
+            trainTarget = trainTarget[i_train]
+            validTarget = validTarget[i_valid]
+            testTarget = testTarget[i_test]
+
+            losses, accur, weight, bias = SGDBatches(trainBatches, trainData, trainTarget, batchSize, reg, lam, sess,\
+                                                     train_op, loss)
+
+            #error_valid = MSE(weight, bias, validData, validTarget, reg)
+            #error_test = MSE(weight, bias, testData, testTarget, reg)
+            acc_valid = accuracy(MSE_predict(weight, bias, validData), validTarget)
+            acc_test = accuracy(MSE_predict(weight, bias, testData), testTarget)
+
+            l_train.append(losses)
+            l_valid.append(error_valid)
+            l_test.append(error_test)
+
+            a_train.append(accur)
+            a_valid.append(acc_valid)
+            a_test.append(acc_test)
+
+    iter_plt = range(iterations)
+
+    y1 = [(l_train, 'training', 'r-'), \
+         (l_valid, 'valid', 'g-'), \
+         (l_test, 'test', 'b-')]
+
+    y2 = [(a_train, 'training', 'r-'), \
+         (a_valid, 'valid', 'g-'), \
+         (a_test, 'test', 'b-')]
+
+    prefix = "batch size:" + str(batchSize) + ", beta1: " + str(beta1) + ", beta2: " + str(beta2) + ", epsilon: " + str(epsilon)
+    name1 = "Training error of " + type + " per epoch with \n" + prefix
+    name2 = "accuracy of " + type + " per epoch with \n" + prefix
+
+    plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
+    plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
+    return
+
+def Model_Training(features, labels):
+
+    loss = convolutional_layers(features, labels)
+
+    opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
+
+    return opt, loss
+
+
 
 print('hello')
 #print(relu(np.array([1,2,3,-2,4])))

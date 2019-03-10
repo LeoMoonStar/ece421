@@ -13,8 +13,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/starter.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="155">
-              <caret line="129" column="111" lean-forward="true" selection-start-line="129" selection-start-column="111" selection-end-line="129" selection-end-column="111" />
+            <state relative-caret-position="306">
+              <caret line="222" column="13" selection-start-line="222" selection-start-column="13" selection-end-line="222" selection-end-column="13" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -25,11 +25,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../a1/starter.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="175">
-              <caret line="228" lean-forward="true" selection-start-line="48" selection-start-column="12" selection-end-line="48" selection-end-column="49" />
-              <folding>
-                <element signature="e#0#23#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="34">
+              <caret line="2" selection-start-line="2" selection-end-line="2" selection-end-column="31" />
             </state>
           </provider>
         </entry>
@@ -37,7 +34,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$USER_HOME$/Desktop/School 2019/CSC384/csp_code/backtracking.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3689">
+            <state relative-caret-position="162">
               <caret line="219" column="26" selection-start-line="219" selection-start-column="21" selection-end-line="219" selection-end-column="26" />
               <folding>
                 <element signature="e#0#41#0" expanded="true" />
@@ -143,6 +140,13 @@
       <find>findvals</find>
       <find>q</find>
       <find>scope</find>
+      <find>adam</find>
+      <find>buildGraph</find>
+      <find>accuracy</find>
+      <find>CE_predict</find>
+      <find>MSE</find>
+      <find>trainBatches</find>
+      <find>plot</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -159,7 +163,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
+  <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="15" />
     <option name="y" value="30" />
     <option name="width" value="1890" />
@@ -256,16 +260,6 @@
     </layout-to-restore>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$USER_HOME$/Desktop/School 2019/CSC384/csp_code/backtracking.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3689">
-          <caret line="219" column="26" selection-start-line="219" selection-start-column="21" selection-end-line="219" selection-end-column="26" />
-          <folding>
-            <element signature="e#0#41#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Desktop/School 2019/CSC384/csp_code/util.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="11458">
@@ -328,20 +322,27 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/Desktop/School 2019/CSC384/csp_code/backtracking.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="219" column="26" selection-start-line="219" selection-start-column="21" selection-end-line="219" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#41#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/../a1/starter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="175">
-          <caret line="228" lean-forward="true" selection-start-line="48" selection-start-column="12" selection-end-line="48" selection-end-column="49" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="34">
+          <caret line="2" selection-start-line="2" selection-end-line="2" selection-end-column="31" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/starter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="155">
-          <caret line="129" column="111" lean-forward="true" selection-start-line="129" selection-start-column="111" selection-end-line="129" selection-end-column="111" />
+        <state relative-caret-position="306">
+          <caret line="222" column="13" selection-start-line="222" selection-start-column="13" selection-end-line="222" selection-end-column="13" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
