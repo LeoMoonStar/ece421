@@ -34,6 +34,148 @@ def convertOneHot(trainTarget, validTarget, testTarget):
     return newtrain, newvalid, newtest
 
 
+def relu(x):
+    zeros = np.zeros(x.shape)
+    return np.maximum(x, zeros)
+
+def gradRelu(x):
+    zeros = np.zeros(x.shape)
+    x_aux = np.maximum(x, zeros)
+    return (x_aux > 0).astype(int)
+
+def softmax(x):
+    exp_x = np.exp(x)
+    sum_exp_x = np.sum(exp_x, axis=1).reshape((x.shape[0], 1))
+    return exp_x/sum_exp_x
+
+
+def computeLayer(X, W, b):
+    return X@W + b
+
+#assuming target is a one hot vector pertaining to which class it
+#corresponds to
+def CE(target, prediction):
+    N = target.shape[0]
+    log_soft = np.log(prediction)
+
+    return -1*np.sum(target*log_soft)/N
+
+def gradCE(target, prediction):
+    N = target.shape[0]
+    return np.sum(target/prediction, axis=0)/N
+
+def accuracy(target, prediction):
+    N = target.shape[0]
+    max_vals = prediction.max(axis=1, keepdims=1) == prediction
+    max_vals = max_vals.astype(int)
+    return np.sum(max_vals*target)/N
+
+def forward_prop(X, W1, b1, W2, b2, y):
+    S1 = computeLayer(X, W1, b1)
+    X1 = relu(S1)
+    S2 = computeLayer(X1, W2, b2)
+    s_X2 = softmax(S2)
+    return s_X2, X1, S1
+
+def NN_train(X_aux, y, validData, validTarget, testData, testTarget, epochs, hidden_units):
+    num_train_ex = X_aux.shape[0]
+    num_features = X_aux.shape[1]*X_aux.shape[2]
+
+    #initialize data matrix
+    X = X_aux.reshape((num_train_ex, num_features))
+    X_v = validData.reshape(validData.shape[0], num_features)
+    X_te = testData.reshape(testData.shape[0], num_features)
+
+    mu, var = 0, 2/(num_features + hidden_units)
+    std = var**(1/2)
+    W1 = np.random.normal(mu, std, (num_features, hidden_units))
+    v_W1 = np.full(W1.shape, 1*10**(-5))
+
+    mu, var = 0, 2/(hidden_units + 10)
+    std = var**(1/2)
+    W2 = np.random.normal(mu, std, (hidden_units, 10))
+    v_W2 = np.full(W2.shape, 1*10**(-5))
+
+    mu, var = 0, 2/(1 + hidden_units)
+    std = var**(1/2)
+    b1 = np.random.normal(mu, std, (1, hidden_units))
+    v_b1 = np.full(b1.shape, 1*10**(-5))
+
+    mu, var = 0, 2/(1 + 10)
+    std = var**(1/2)
+    b2 = np.random.normal(mu, std, (1, 10))
+    v_b2 = np.full(b2.shape, 1*10**(-5))
+
+    #velocity
+    gamma = 0.9
+    alpha = 0.01
+
+    #for plotting
+    errors_tr = []
+    acc_tr = []
+    errors_v = []
+    acc_v = []
+    errors_te = []
+    acc_te = []
+
+    for i in range(0, epochs):
+        #forward propagation
+        s_X2, _, _ = forward_prop(X_v, W1, b1, W2, b2, validTarget)
+        E_v = CE(validTarget, s_X2)
+        A_v = accuracy(validTarget, s_X2)
+
+        s_X2, _, _ = forward_prop(X_te, W1, b1, W2, b2, testTarget)
+        E_te = CE(testTarget, s_X2)
+        A_te = accuracy(testTarget, s_X2)
+
+        s_X2, X1, S1 = forward_prop(X, W1, b1, W2, b2, y)
+        E_tr = CE(y, s_X2)
+        A_tr = accuracy(y, s_X2)
+
+        #back propagation
+        d1_n = (s_X2-y)
+        d1 = np.sum(d1_n, axis=0)/num_train_ex
+        v_b2 = gamma*v_b2 + alpha*d1
+
+        v_W2 = gamma*v_W2 + alpha*((d1_n.T@X1).T/num_train_ex)
+
+        d2_n = d1_n@W2.T*gradRelu(S1)
+        d2 = np.sum(d2_n, axis=0)/num_train_ex
+        v_b1 = gamma*v_b1 + alpha*d2
+
+        v_W1 = gamma*v_W1 + alpha*((d2_n.T@X).T/num_train_ex)
+
+        #Gradient descent
+        b2 = b2 - v_b2
+        W2 = W2 - v_W2
+        b1 = b1 - v_b1
+        W1 = W1 - v_W1
+
+        errors_tr.append(E_tr)
+        acc_tr.append(A_tr)
+        errors_v.append(E_v)
+        acc_v.append(A_v)
+        errors_te.append(E_te)
+        acc_te.append(A_te)
+
+    return errors_tr, acc_tr, errors_v, acc_v, errors_te, acc_te
+
+figure_num = 1
+
+def plotFigures(title, x_label, y_label, x_arr, y_arr, legend):
+    global figure_num
+    plt.figure(figure_num)
+    plt.ylabel(x_label)
+    plt.xlabel(y_label)
+    plt.title(title)
+    for i in range(len(y_arr)):
+        y = y_arr[i][0]
+        plot_name = y_arr[i][1]
+        color = y_arr[i][2]
+        plt.plot(x_arr, y, color, label=plot_name)
+    plt.legend(loc=legend)
+    figure_num += 1
+
 def shuffle(trainData, trainTarget):
     np.random.seed(421)
     randIndx = np.arange(len(trainData))
@@ -79,22 +221,6 @@ def convolutional_layers(features, labels):
 
     return loss, W3, b3
 
-def plotFigures(title, x_label, y_label, x_arr, y_arr, legend):
-    global figure_num
-    plt.figure(figure_num)
-    plt.ylabel(x_label)
-    plt.xlabel(y_label)
-    plt.title(title)
-    for i in range(len(y_arr)):
-        y = y_arr[i][0]
-        plot_name = y_arr[i][1]
-        color = y_arr[i][2]
-        plt.plot(x_arr, y, color, label=plot_name)
-    plt.legend(loc=legend)
-    figure_num += 1
-
-
-
 def Model_Training(features, labels):
 
     dim = 10
@@ -130,13 +256,60 @@ def Model_Training(features, labels):
             print(s, session.run(W))
 
 
-
-
 print('hello')
-#print(relu(np.array([1,2,3,-2,4])))
-#print(softmax(np.array([1,2,3])))
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
-#print(trainData.shape)
-#print(CE(np.array([1,2,3,-2,4]), np.array([1,2,3,-2,4])))
-Model_Training(trainData, trainTarget)
+
+#error for vanilla NN training
+epoch = 200
+hidden_units = 1000
+
+train_error, train_acc, valid_error, valid_acc, test_error, test_acc = \
+    NN_train(trainData, trainTarget, validData, validTarget, testData, testTarget, epoch, hidden_units)
+
+x_label = "epochs"
+y_label = "CE (cross entropy error)"
+title = "CE over epochs"
+y_err = [(train_error, 'training', 'r-'),(valid_error, 'valid', 'g-'),(test_error, 'test', 'b-')]
+
+plotFigures(title, x_label, y_label, range(epoch), y_err, 1)
+
+y_label = "Accuracy"
+title = "Accuracy over epochs"
+y_acc = [(train_acc, 'training', 'r-'),(valid_acc, 'valid', 'g-'),(test_acc, 'test', 'b-')]
+plotFigures(title, x_label, y_label, range(epoch), y_acc, 4)
+
+
+#part 1.4; 100 hidden units
+epoch = 200
+hidden_units = 100
+
+test_acc100 = []
+_, _, _, _, _, test_acc100 = \
+    NN_train(trainData, trainTarget, validData, validTarget, testData, testTarget, epoch, hidden_units)
+
+#part 1.4; 500 hidden units
+epoch = 200
+hidden_units = 500
+
+test_acc500 = []
+_, _, _, _, _, test_acc500 = \
+    NN_train(trainData, trainTarget, validData, validTarget, testData, testTarget, epoch, hidden_units)
+
+#part 1.4; 2000 hidden units
+epoch = 200
+hidden_units = 2000
+
+test_acc2000 = []
+_, _, _, _, _, test_acc2000 = \
+    NN_train(trainData, trainTarget, validData, validTarget, testData, testTarget, epoch, hidden_units)
+
+y_label = "Accuracy"
+title = "Accuracy of test sets using different hidden units"
+y_acc = [(test_acc100, '100 hidden units', 'r-'),(test_acc500, '500 hidden units', 'g-'),(test_acc2000, '2000 hidden units', 'b-')]
+plotFigures(title, x_label, y_label, range(epoch), y_acc, 4)
+
+plt.show()
+
+#part 2.2
+#Model_Training(trainData, trainTarget)
