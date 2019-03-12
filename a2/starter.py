@@ -98,9 +98,13 @@ def plotFigures(title, x_label, y_label, x_arr, y_arr, legend):
 def Model_Training(features, labels):
 
     dim = 10
-    N = 1000
+    N = features.shape[0]
     dim_x = features.shape[1]
     dim_y = features.shape[2]
+    batch_size = 32
+    epoch = 50
+    runs = int(N / batch_size)
+
 
     loss, W, b = convolutional_layers(features, labels)
     print('hi')
@@ -109,8 +113,8 @@ def Model_Training(features, labels):
 
 
     # Define placeholders to feed mini_batches
-    X = tf.placeholder(tf.float32, shape=(N, dim_x*dim_y), name="X")
-    Y = tf.placeholder(tf.float32, shape=(N, None), name="Y")
+    X = tf.placeholder(tf.float32, shape=(batch_size, dim_x*dim_y), name="X")
+    Y = tf.placeholder(tf.float32, shape=(batch_size, None), name="Y")
 
     opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
 
@@ -119,15 +123,18 @@ def Model_Training(features, labels):
     session.run(init)
 
     # Fit the line.
-    for s in range(2001):
-        i_batch = (s % N)
-        #batch = x_data[i_batch:i_batch + 1], y_data[i_batch:i_batch + 1]
-        x_batch = x_data[s * N:(s + 1) * N].reshape((N, x_data.shape[1]*x_data.shape[2]))
-        y_batch = y_data[s * N:(s + 1) * N].reshape((N, 1))
-        _, l = session.run([opt, loss], feed_dict={X: x_batch, Y: y_batch})
-        #session.run(opt, feed_dict={X: x_data[i_batch:i_batch + 1], y_: y_data[i_batch:i_batch + 1]})
-        if s % 200 == 0:
-            print(s, session.run(W))
+    for s in range(epoch):
+        for p in range(runs):
+
+            x_batch = x_data[p * batch_size:(p + 1) * batch_size].reshape((batch_size, x_data.shape[1]*x_data.shape[2]))
+            y_batch = y_data[p * batch_size:(p + 1) * batch_size]
+            print(y_batch.shape)
+            _, l = session.run([opt, loss], feed_dict={X: x_batch, Y: y_batch})
+
+            if s % 1 == 0:
+                print(s, session.run(W))
+
+        x_data, y_data = shuffle(x_data, y_data)
 
 
 
