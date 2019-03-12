@@ -251,7 +251,6 @@ def buildGraph(batchSize, beta1=None, beta2=None, epsilon=None, lossType=None, l
     #acc, acc_op = tf.metrics.accuracy(labels=tf.argmax(Y, 1), predictions=tf.argmax(predict, 1))
 
     return W, b, predict, Y, X, loss, train_op, lam
-
 def SGDBatches(it, X_d, Y_d, batchSize, reg, lam, sess, X, Y, W, b, train_op, loss, type):
     #print(X_d.shape[0])
     data_shape = (batchSize, X_d.shape[1]*X_d.shape[2])

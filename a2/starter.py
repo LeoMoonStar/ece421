@@ -99,15 +99,18 @@ def Model_Training(features, labels):
 
     dim = 10
     N = 1000
+    dim_x = features.shape[1]
+    dim_y = features.shape[2]
 
     loss, W, b = convolutional_layers(features, labels)
     print('hi')
     x_data = features
     y_data = labels
 
+
     # Define placeholders to feed mini_batches
-    X = tf.placeholder(tf.float32, shape=[None, dim], name='X')
-    y_ = tf.placeholder(tf.float32, shape=[None, 1], name='y')
+    X = tf.placeholder(tf.float32, shape=(N, dim_x*dim_y), name="X")
+    Y = tf.placeholder(tf.float32, shape=(N, None), name="Y")
 
     opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
 
@@ -121,7 +124,7 @@ def Model_Training(features, labels):
         #batch = x_data[i_batch:i_batch + 1], y_data[i_batch:i_batch + 1]
         x_batch = x_data[s * N:(s + 1) * N].reshape((N, x_data.shape[1]*x_data.shape[2]))
         y_batch = y_data[s * N:(s + 1) * N].reshape((N, 1))
-        _, l = session.run([opt, loss], feed_dict={X: x_batch, y_: y_batch})
+        _, l = session.run([opt, loss], feed_dict={X: x_batch, Y: y_batch})
         #session.run(opt, feed_dict={X: x_data[i_batch:i_batch + 1], y_: y_data[i_batch:i_batch + 1]})
         if s % 200 == 0:
             print(s, session.run(W))
