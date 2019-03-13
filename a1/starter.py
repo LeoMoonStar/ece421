@@ -229,12 +229,12 @@ def buildGraph(batchSize, beta1=None, beta2=None, epsilon=None, lossType=None, l
 
     tf.set_random_seed(421)
     W_shape = (dim_x*dim_y, None)
-    W = tf.get_variable("W", initializer=tf.truncated_normal(shape=[dim_x*dim_y, 1], stddev=0.5))
+    lam = tf.placeholder(tf.float32, shape=None, name="lam")
+    W = tf.get_variable("W", initializer=tf.truncated_normal(shape=[dim_x*dim_y, 1], stddev=0.5, regularizer=lam))
     b = tf.get_variable("b", initializer=tf.truncated_normal(shape=[], stddev=0.5))
 
     X = tf.placeholder(tf.float32, shape=(batchSize, dim_x*dim_y), name="X")
     Y = tf.placeholder(tf.float32, shape=(batchSize, None), name="Y")
-    lam = tf.placeholder(tf.float32, shape=None, name="lam")
 
     predict = None
     loss = None

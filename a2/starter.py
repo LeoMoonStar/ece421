@@ -186,9 +186,8 @@ def shuffle(trainData, trainTarget):
     return data, target
 
 
-def convolutional_layers(features, labels):
+def convolutional_layers(features, labels, lam):
     # Input Layer
-
     input = tf.reshape(features, shape=[-1, 28, 28, 1])
 
     # 3x3 convolution, 1 input, 32 outputs
@@ -211,23 +210,25 @@ def convolutional_layers(features, labels):
     # Fully connected layer relu
     W2 = tf.get_variable('W2', [6272, 1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     b2 = tf.get_variable('b2', [1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
-    fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
+    dropout = tf.nn.dropout(pool,keep_prob=0.9)
+    fc1 = tf.nn.relu(tf.matmul(dropout, W2) + b2)
+    #fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
 
     # Fully connected layer with softmax
     W3 = tf.get_variable('W3', [1024, 10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     b3 = tf.get_variable('b3', [10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
-    #sm = tf.get_variable('sm', [labels[0].shape, labels[1].shape], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
     fc2 = tf.matmul(fc1, W3) + b3
     sm = tf.nn.softmax(fc2)
     acc, acc_op = tf.metrics.accuracy(labels=tf.argmax(sm, 1), predictions=tf.argmax(labels, 1))
 
     # Loss with cross entropy
+    regu = lam*(tf.norm(W1) + tf.norm(b1) + tf.norm(W2) + tf.norm(b2) + tf.norm(W3) + tf.norm(b3))
     entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fc2)
-    loss = tf.reduce_mean(entropy)
+    loss = tf.reduce_mean(entropy) + regu
 
     return loss, W3, b3, acc_op
 
-def Model_Training(features, labels):
+def Model_Training(features, labels, lam):
 
     dim = 10
     N = features.shape[0]
@@ -240,33 +241,40 @@ def Model_Training(features, labels):
     # Define placeholders to feed mini_batches
     X = tf.placeholder(tf.float32, shape=(batch_size, dim_x * dim_y), name="X")
     Y = tf.placeholder(tf.float32, shape=(batch_size, None), name="Y")
-    lam = tf.placeholder(tf.float32, shape=None, name="lam")
 
-    loss, W, b, accer = convolutional_layers(X, Y)
+    loss, W, b, accer = convolutional_layers(X, Y, lam)
 
     opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
 
-    return W, b, Y, X, loss, opt, accer, lam
+    return W, b, Y, X, loss, opt, accer
 
-def Model_Batches(it, x_data, y_data, batch_size, session, X, Y, opt, loss, accer, type, lam, reg):
-
+def Model_Batches(it, x_data, y_data, batch_size, session, X, Y, opt, loss, accer, type):
+    avg_acc = 0
+    avg_loss = 0
+    
     for p in range(it):
         x_batch = x_data[p * batch_size:(p + 1) * batch_size].reshape((batch_size, x_data.shape[1] * x_data.shape[2]))
         y_batch = y_data[p * batch_size:(p + 1) * batch_size]
         if type == 'train':
-            _, l, acc = session.run([opt, loss, accer], feed_dict={X: x_batch, Y: y_batch, lam:reg})
+            _, l, acc = session.run([opt, loss, accer], feed_dict={X: x_batch, Y: y_batch})
         else:
-            l, acc = session.run([loss, accer], feed_dict={X: x_batch, Y: y_batch, lam:reg})
-        print(l, acc)
+            l, acc = session.run([loss, accer], feed_dict={X: x_batch, Y: y_batch})
+        avg_acc += acc
+        avg_loss += l
+    print(l, acc)
 
-    return l, acc
+    avg_acc /= it
+    avg_loss /= it
+    return avg_loss, avg_acc
 
 def BuildGraphs(batchSize, iterations):
 
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
 
-    W, b, Y, X, loss, train_op, accer, lam = Model_Training(trainData, trainTarget)
+    lam = 0
+
+    W, b, Y, X, loss, train_op, accer = Model_Training(trainData, trainTarget, lam)
 
     l_train = []
     l_valid = []
@@ -277,11 +285,7 @@ def BuildGraphs(batchSize, iterations):
     trainBatches = int(trainData.shape[0] / batchSize)
     validBatches = int(validData.shape[0] / batchSize)
     testBatches = int(testData.shape[0] / batchSize)
-    error_valid = 0
-    error_test = 0
-    acc_valid = 0
-    acc_test = 0
-    reg = 0
+
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -305,11 +309,11 @@ def BuildGraphs(batchSize, iterations):
             testTarget = testTarget[i_test]
 
             error_train, acc_train = Model_Batches(trainBatches, trainData, trainTarget, \
-                          batchSize, session, X, Y, train_op, loss, accer, 'train', lam, reg)
+                          batchSize, session, X, Y, train_op, loss, accer, 'train')
             error_valid, acc_valid = Model_Batches(validBatches, validData, validTarget, \
-                          batchSize, session, X, Y, train_op, loss, accer, 'valid', lam, reg)
+                          batchSize, session, X, Y, train_op, loss, accer, 'valid')
             error_test, acc_test = Model_Batches(testBatches, testData, testTarget, \
-                          batchSize, session, X, Y, train_op, loss, accer, 'test', lam, reg)
+                          batchSize, session, X, Y, train_op, loss, accer, 'test')
 
             l_train.append(error_train)
             l_valid.append(error_valid)
@@ -327,17 +331,18 @@ def BuildGraphs(batchSize, iterations):
               (a_valid, 'valid', 'g-'), \
               (a_test, 'test', 'b-')]
 
-        prefix = "batch size:" + str(batchSize)
-        name1 = "Training error of " + type + " per epoch with \n" + prefix
-        name2 = "accuracy of " + type + " per epoch with \n" + prefix
+        prefix = "dropout percent: 0.9" 
+        name1 = "Training error of network with \n" + prefix
+        name2 = "Accuracy of network with \n" + prefix
 
-        plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
-        plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
+        plotFigures(name1, "error", "epoch", iter_plt, y1, 2)
+        plotFigures(name2, "accuracy", "epoch", iter_plt, y2, 4)
 
 
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
 BuildGraphs(32, 50)
+plt.show()
 '''
 print('hello')
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
