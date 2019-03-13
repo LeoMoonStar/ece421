@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Load the data
@@ -187,12 +188,14 @@ def shuffle(trainData, trainTarget):
 
 def convolutional_layers(features, labels):
     # Input Layer
+
     input = tf.reshape(features, shape=[-1, 28, 28, 1])
 
     # 3x3 convolution, 1 input, 32 outputs
-    W1 = tf.get_variable("W1", [3, 3, 1, 32], dtype='float64',initializer=tf.contrib.layers.xavier_initializer())
-    b1 = tf.get_variable('b1', [32], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    W1 = tf.get_variable("W1", [3, 3, 1, 32], dtype='float32',initializer=tf.contrib.layers.xavier_initializer())
+    b1 = tf.get_variable('b1', [32], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     conv = tf.nn.conv2d(input, W1, strides=[1, 1, 1, 1], padding='SAME')
+
     conv1 = tf.nn.relu(conv + b1, name='conv1')
 
     # Batch Normalization layer
@@ -206,20 +209,23 @@ def convolutional_layers(features, labels):
     pool = tf.reshape(pool, [-1, 6272])
 
     # Fully connected layer relu
-    W2 = tf.get_variable('W2', [6272, 1024], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
-    b2 = tf.get_variable('b2', [1024], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    W2 = tf.get_variable('W2', [6272, 1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    b2 = tf.get_variable('b2', [1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
 
     # Fully connected layer with softmax
-    W3 = tf.get_variable('W3', [1024, 10], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
-    b3 = tf.get_variable('b3', [10], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
+    W3 = tf.get_variable('W3', [1024, 10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    b3 = tf.get_variable('b3', [10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    #sm = tf.get_variable('sm', [labels[0].shape, labels[1].shape], dtype='float64', initializer=tf.contrib.layers.xavier_initializer())
     fc2 = tf.matmul(fc1, W3) + b3
+    sm = tf.nn.softmax(fc2)
+    acc, acc_op = tf.metrics.accuracy(labels=tf.argmax(sm, 1), predictions=tf.argmax(labels, 1))
 
     # Loss with cross entropy
     entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fc2)
     loss = tf.reduce_mean(entropy)
 
-    return loss, W3, b3
+    return loss, W3, b3, acc_op
 
 def Model_Training(features, labels):
 
@@ -231,38 +237,108 @@ def Model_Training(features, labels):
     epoch = 50
     runs = int(N / batch_size)
 
-
-    loss, W, b = convolutional_layers(features, labels)
-    print('hi')
-    x_data = features
-    y_data = labels
-
-
     # Define placeholders to feed mini_batches
-    X = tf.placeholder(tf.float32, shape=(batch_size, dim_x*dim_y), name="X")
+    X = tf.placeholder(tf.float32, shape=(batch_size, dim_x * dim_y), name="X")
     Y = tf.placeholder(tf.float32, shape=(batch_size, None), name="Y")
+    lam = tf.placeholder(tf.float32, shape=None, name="lam")
+
+    loss, W, b, accer = convolutional_layers(X, Y)
 
     opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
 
-    init = tf.global_variables_initializer()
-    session = tf.Session()
-    session.run(init)
+    return W, b, Y, X, loss, opt, accer, lam
 
-    # Fit the line.
-    for s in range(epoch):
-        for p in range(runs):
+def Model_Batches(it, x_data, y_data, batch_size, session, X, Y, opt, loss, accer, type, lam, reg):
 
-            x_batch = x_data[p * batch_size:(p + 1) * batch_size].reshape((batch_size, x_data.shape[1]*x_data.shape[2]))
-            y_batch = y_data[p * batch_size:(p + 1) * batch_size]
-            print(y_batch.shape)
-            _, l = session.run([opt, loss], feed_dict={X: x_batch, Y: y_batch})
+    for p in range(it):
+        x_batch = x_data[p * batch_size:(p + 1) * batch_size].reshape((batch_size, x_data.shape[1] * x_data.shape[2]))
+        y_batch = y_data[p * batch_size:(p + 1) * batch_size]
+        if type == 'train':
+            _, l, acc = session.run([opt, loss, accer], feed_dict={X: x_batch, Y: y_batch, lam:reg})
+        else:
+            l, acc = session.run([loss, accer], feed_dict={X: x_batch, Y: y_batch, lam:reg})
+        print(l, acc)
 
-            if s % 1 == 0:
-                print(s, session.run(W))
+    return l, acc
 
-        x_data, y_data = shuffle(x_data, y_data)
+def BuildGraphs(batchSize, iterations):
+
+    trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+    trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
+
+    W, b, Y, X, loss, train_op, accer, lam = Model_Training(trainData, trainTarget)
+
+    l_train = []
+    l_valid = []
+    l_test = []
+    a_train = []
+    a_valid = []
+    a_test = []
+    trainBatches = int(trainData.shape[0] / batchSize)
+    validBatches = int(validData.shape[0] / batchSize)
+    testBatches = int(testData.shape[0] / batchSize)
+    error_valid = 0
+    error_test = 0
+    acc_valid = 0
+    acc_test = 0
+    reg = 0
+
+    with tf.Session() as session:
+        session.run(tf.global_variables_initializer())
+        session.run(tf.local_variables_initializer())
+
+        #sess.run(tf.global_variables_initializer())
+        for i in range(iterations):
+            i_train = np.arange(trainData.shape[0])
+            np.random.shuffle(i_train)
+            i_valid = np.arange(validData.shape[0])
+            np.random.shuffle(i_valid)
+            i_test = np.arange(testData.shape[0])
+            np.random.shuffle(i_test)
+
+            trainData = trainData[i_train]
+            validData = validData[i_valid]
+            testData = testData[i_test]
+
+            trainTarget = trainTarget[i_train]
+            validTarget = validTarget[i_valid]
+            testTarget = testTarget[i_test]
+
+            error_train, acc_train = Model_Batches(trainBatches, trainData, trainTarget, \
+                          batchSize, session, X, Y, train_op, loss, accer, 'train', lam, reg)
+            error_valid, acc_valid = Model_Batches(validBatches, validData, validTarget, \
+                          batchSize, session, X, Y, train_op, loss, accer, 'valid', lam, reg)
+            error_test, acc_test = Model_Batches(testBatches, testData, testTarget, \
+                          batchSize, session, X, Y, train_op, loss, accer, 'test', lam, reg)
+
+            l_train.append(error_train)
+            l_valid.append(error_valid)
+            l_test.append(error_test)
+
+            a_train.append(acc_train)
+            a_valid.append(acc_valid)
+            a_test.append(acc_test)
+
+        iter_plt = range(iterations)
+        y1 = [(l_train, 'training', 'r-'), \
+              (l_valid, 'valid', 'g-'), \
+              (l_test, 'test', 'b-')]
+        y2 = [(a_train, 'training', 'r-'), \
+              (a_valid, 'valid', 'g-'), \
+              (a_test, 'test', 'b-')]
+
+        prefix = "batch size:" + str(batchSize)
+        name1 = "Training error of " + type + " per epoch with \n" + prefix
+        name2 = "accuracy of " + type + " per epoch with \n" + prefix
+
+        plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
+        plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
 
 
+trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
+trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
+BuildGraphs(32, 50)
+'''
 print('hello')
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
@@ -317,6 +393,6 @@ y_acc = [(test_acc100, '100 hidden units', 'r-'),(test_acc500, '500 hidden units
 plotFigures(title, x_label, y_label, range(epoch), y_acc, 4)
 
 plt.show()
-
+'''
 #part 2.2
 #Model_Training(trainData, trainTarget)
