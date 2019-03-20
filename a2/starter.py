@@ -210,7 +210,7 @@ def convolutional_layers(features, labels, lam):
     # Fully connected layer relu
     W2 = tf.get_variable('W2', [6272, 1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     b2 = tf.get_variable('b2', [1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
-    dropout = tf.nn.dropout(pool,keep_prob=0.9)
+    dropout = tf.nn.dropout(pool,keep_prob=0.5)
     fc1 = tf.nn.relu(tf.matmul(dropout, W2) + b2)
     #fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
 
@@ -331,7 +331,7 @@ def BuildGraphs(batchSize, iterations):
               (a_valid, 'valid', 'g-'), \
               (a_test, 'test', 'b-')]
 
-        prefix = "dropout percent: 0.9" 
+        prefix = "dropout percent: 0.5"
         name1 = "Training error of network with \n" + prefix
         name2 = "Accuracy of network with \n" + prefix
 
