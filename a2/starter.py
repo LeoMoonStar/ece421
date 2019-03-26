@@ -166,8 +166,8 @@ figure_num = 1
 def plotFigures(title, x_label, y_label, x_arr, y_arr, legend):
     global figure_num
     plt.figure(figure_num)
-    plt.ylabel(x_label)
-    plt.xlabel(y_label)
+    plt.ylabel(y_label)
+    plt.xlabel(x_label)
     plt.title(title)
     for i in range(len(y_arr)):
         y = y_arr[i][0]
@@ -186,7 +186,7 @@ def shuffle(trainData, trainTarget):
     return data, target
 
 
-def convolutional_layers(features, labels, lam):
+def convolutional_layers(features, labels, lam, dropout):
     # Input Layer
     input = tf.reshape(features, shape=[-1, 28, 28, 1])
 
@@ -208,27 +208,30 @@ def convolutional_layers(features, labels, lam):
     pool = tf.reshape(pool, [-1, 6272])
 
     # Fully connected layer relu
-    W2 = tf.get_variable('W2', [6272, 1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
-    b2 = tf.get_variable('b2', [1024], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
-    dropout = tf.nn.dropout(pool,keep_prob=0.9)
-    fc1 = tf.nn.relu(tf.matmul(dropout, W2) + b2)
-    #fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
+    W2 = tf.get_variable('W2', [6272, 784], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    b2 = tf.get_variable('b2', [784], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    if dropout > 0:
+        dropout = tf.nn.dropout(pool,keep_prob=0.9)
+        fc1 = tf.nn.relu(tf.matmul(dropout, W2) + b2)
+    else:
+        fc1 = tf.nn.relu(tf.matmul(pool, W2) + b2)
 
     # Fully connected layer with softmax
-    W3 = tf.get_variable('W3', [1024, 10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
+    W3 = tf.get_variable('W3', [784, 10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     b3 = tf.get_variable('b3', [10], dtype='float32', initializer=tf.contrib.layers.xavier_initializer())
     fc2 = tf.matmul(fc1, W3) + b3
     sm = tf.nn.softmax(fc2)
     acc, acc_op = tf.metrics.accuracy(labels=tf.argmax(sm, 1), predictions=tf.argmax(labels, 1))
 
     # Loss with cross entropy
-    regu = lam*(tf.norm(W1) + tf.norm(b1) + tf.norm(W2) + tf.norm(b2) + tf.norm(W3) + tf.norm(b3))
+    regu = lam*(tf.nn.l2_loss(W1) + tf.nn.l2_loss(W2) + tf.nn.l2_loss(W3))
+
     entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fc2)
     loss = tf.reduce_mean(entropy) + regu
 
     return loss, W3, b3, acc_op
 
-def Model_Training(features, labels, lam):
+def Model_Training(features, labels, lam, dropout):
 
     dim = 10
     N = features.shape[0]
@@ -242,7 +245,7 @@ def Model_Training(features, labels, lam):
     X = tf.placeholder(tf.float32, shape=(batch_size, dim_x * dim_y), name="X")
     Y = tf.placeholder(tf.float32, shape=(batch_size, None), name="Y")
 
-    loss, W, b, accer = convolutional_layers(X, Y, lam)
+    loss, W, b, accer = convolutional_layers(X, Y, lam, dropout)
 
     opt = tf.train.AdamOptimizer(0.0001).minimize(loss)
 
@@ -267,14 +270,12 @@ def Model_Batches(it, x_data, y_data, batch_size, session, X, Y, opt, loss, acce
     avg_loss /= it
     return avg_loss, avg_acc
 
-def BuildGraphs(batchSize, iterations):
+def BuildGraphs(batchSize, iterations, lam, dropout):
 
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
 
-    lam = 0
-
-    W, b, Y, X, loss, train_op, accer = Model_Training(trainData, trainTarget, lam)
+    W, b, Y, X, loss, train_op, accer = Model_Training(trainData, trainTarget, lam, dropout)
 
     l_train = []
     l_valid = []
@@ -314,6 +315,8 @@ def BuildGraphs(batchSize, iterations):
                           batchSize, session, X, Y, train_op, loss, accer, 'valid')
             error_test, acc_test = Model_Batches(testBatches, testData, testTarget, \
                           batchSize, session, X, Y, train_op, loss, accer, 'test')
+            #error_valid, acc_valid = session.run([loss, accer], feed_dict={X: validData, Y: validTarget})
+            #error_test, acc_test = session.run([loss, accer], feed_dict={X: testData, Y: testTarget})
 
             l_train.append(error_train)
             l_valid.append(error_valid)
@@ -331,23 +334,26 @@ def BuildGraphs(batchSize, iterations):
               (a_valid, 'valid', 'g-'), \
               (a_test, 'test', 'b-')]
 
-        prefix = "dropout percent: 0.9" 
-        name1 = "Training error of network with \n" + prefix
-        name2 = "Accuracy of network with \n" + prefix
+        if lam > 0:
+            prefix = "lambda : " + str(lam)
+            name1 = "Training error of network with \n" + prefix
+            name2 = "Accuracy of network with \n" + prefix
+        elif dropout > 0:
+            prefix = "Dropout percentage : " + str(dropout)
+            name1 = "Training error of network with \n" + prefix
+            name2 = "Accuracy of network with \n" + prefix
+        else:
+            prefix = "batch size: 32"
+            name1 = "Training error of network with \n" + prefix
+            name2 = "Accuracy of network with \n" + prefix
 
-        plotFigures(name1, "error", "epoch", iter_plt, y1, 2)
-        plotFigures(name2, "accuracy", "epoch", iter_plt, y2, 4)
+        plotFigures(name1, "epoch", "error", iter_plt, y1, 2)
+        plotFigures(name2, "epoch", "accuracy", iter_plt, y2, 4)
 
 
 trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
 trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
-BuildGraphs(32, 50)
-plt.show()
 '''
-print('hello')
-trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
-trainTarget, validTarget, testTarget = convertOneHot(trainTarget, validTarget, testTarget)
-
 #error for vanilla NN training
 epoch = 200
 hidden_units = 1000
@@ -396,8 +402,49 @@ y_label = "Accuracy"
 title = "Accuracy of test sets using different hidden units"
 y_acc = [(test_acc100, '100 hidden units', 'r-'),(test_acc500, '500 hidden units', 'g-'),(test_acc2000, '2000 hidden units', 'b-')]
 plotFigures(title, x_label, y_label, range(epoch), y_acc, 4)
+'''
+
+#regular run
+lam = 0
+dropout = 0
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+#lambda = 0.01
+lam = 0.01
+dropout = 0
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+#lambda = 0.1
+lam = 0.1
+dropout = 0
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+#lambda = 0.5
+lam = 0.5
+dropout = 0
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+#dropout = 0.9
+lam = 0
+dropout = 0.9
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+
+#dropout = 0.75
+lam = 0
+dropout = 0.75
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
+
+#dropout = 0.5
+lam = 0
+dropout = 0.5
+BuildGraphs(32, 50, lam, dropout)
+tf.reset_default_graph()
 
 plt.show()
-'''
-#part 2.2
-#Model_Training(trainData, trainTarget)
