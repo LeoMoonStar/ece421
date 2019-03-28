@@ -17,14 +17,39 @@ if is_valid:
   val_data = data[rnd_idx[:valid_batch]]
   data = data[rnd_idx[valid_batch:]]
 
+def convariance_Mat(X, m):
+  # Inputs
+  # X: is an NxD matrix
+  # m: some of the
+
+  diff = X - m
+  rval = tf.matmul(diff, diff, transpose_a=True, transpose_b=False)
+
+  return rval/X.shape[0]
+
+
 # Distance function for GMM
 def distanceFunc(X, MU):
-    # Inputs
-    # X: is an NxD matrix (N observations and D dimensions)
-    # MU: is an KxD matrix (K means and D dimensions)
-    # Outputs
-    # pair_dist: is the pairwise distance matrix (NxK)
-    # TODO
+  # Inputs
+  # X: is an NxD matrix (N observations and D dimensions)
+  # MU: is an KxD matrix (K means and D dimensions)
+  # Outputs
+  # pair_dist: is the pairwise distance matrix (NxK)
+
+  # Make a covariance matrix
+  diff = X - MU
+
+
+  # Find all the means
+  #
+
+  means = tf.reshape(tf.reduce_sum(tf.square(X), axis=1), [-1, 1])/
+  t1 = -2 * tf.matmul(X, MU, transpose_a=False, transpose_b=True)
+  sqX = tf.reshape(tf.reduce_sum(tf.square(X), axis=1), [-1, 1])
+  sqMU = tf.reshape(tf.reduce_sum(tf.square(MU), axis=1), [1, -1])
+
+  ret = t1 + sqX + sqMU
+  return ret
 
 def log_GaussPDF(X, mu, sigma):
     # Inputs
