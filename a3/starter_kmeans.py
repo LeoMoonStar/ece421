@@ -67,11 +67,13 @@ def distanceFunc(X, MU):
     sqX = tf.reshape(tf.reduce_sum(tf.square(X), axis=1), [-1, 1])
     sqMU = tf.reshape(tf.reduce_sum(tf.square(MU), axis=1), [1, -1])
 
-    ret = tf.sqrt(tf.maximum(t1 + sqX + sqMU, 0))
+    #ret = tf.sqrt(tf.maximum(t1 + sqX + sqMU, 0))
+    ret = t1 + sqX + sqMU
     return ret
 
 def computeLoss(X, MU):
-  dist_mat = tf.square(distanceFunc(X, MU))
+  #dist_mat = tf.square(distanceFunc(X, MU))
+  dist_mat = distanceFunc(X, MU)
   temp = tf.reduce_max(-1*dist_mat, axis=1)
   temp = -1*temp
   loss = tf.reduce_sum(temp)
@@ -82,7 +84,7 @@ def kmeansGraph(dataset, K, alpha):
   D = dataset.shape[1]
 
   X = tf.placeholder(tf.float32, shape=(N, D), name="X")
-  MU = tf.get_variable("MU", initializer=tf.truncated_normal(shape=[K, D]))
+  MU = tf.get_variable("MU", initializer=tf.random.normal(shape=[K, D]))
 
   dist_mat, loss = computeLoss(X, MU)
 
@@ -100,7 +102,7 @@ def kmeansLoss(dataset, K):
 
 def runKmeansLoss(K):
   iterations = 300
-  _, MU, X, loss, opt = kmeansGraph(data, K, 0.001)
+  _, MU, X, loss, opt = kmeansGraph(data, K, 0.1)
 
   loss_vec = []
 
@@ -118,7 +120,7 @@ def runKmeansLoss(K):
 
 def runKmeansClusters(K):
   iterations = 300
-  dist_mat, MU, X, loss, opt = kmeansGraph(data, K, 0.001)
+  dist_mat, MU, X, loss, opt = kmeansGraph(data, K, 0.1)
 
   if is_valid:
     X_val, MU_Val, val_loss = kmeansLoss(val_data, K)
@@ -131,6 +133,7 @@ def runKmeansClusters(K):
     session.run(tf.local_variables_initializer())
     for i in range(0, iterations):
       _, l, mu, a  = session.run([opt, loss, MU, dist_mat], feed_dict={X: data})
+      #print(data.shape, K, a.shape)
       if is_valid:
         l_val = session.run([val_loss], feed_dict={X_val: val_data, MU_Val: mu})
         val_loss_vec.append(l_val)
@@ -148,7 +151,7 @@ def runKmeansClusters(K):
 
   plotClusters(title, xlabel, ylabel, data, mu, cluster_groups)
   if is_valid:
-    plotLoss("Validation Loss when K=" + str(K), "iterations", "loss", loss_vec, val_loss_vec)
+    plotLoss("Validation Loss when K = " + str(K), "iterations", "loss", loss_vec, val_loss_vec)
 
   tf.reset_default_graph()
 
