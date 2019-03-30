@@ -37,7 +37,8 @@ def distanceFunc(X, MU):
   # pair_dist: is the pairwise distance matrix (NxK)
 
   # Make a covariance matrix
-  diff = X - MU
+  m =
+  convariance_Mat(X, m)
 
 
   # Find all the means
