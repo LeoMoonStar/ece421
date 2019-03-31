@@ -10,8 +10,7 @@ data = np.load('data2D.npy')
 [num_pts, dim] = np.shape(data)
 
 # Here for testing
-is_valid = True
-
+is_valid = False
 # For Validation set
 if is_valid:
     valid_batch = int(num_pts / 3.0)
@@ -21,7 +20,36 @@ if is_valid:
     val_data = data[rnd_idx[:valid_batch]]
     data = data[rnd_idx[valid_batch:]]
 
-print(num_pts, dim)
+fig_num = 0
+
+def plotLoss(title, xlabel, ylabel, losses, val_losses=[]):
+  global fig_num
+  plt.figure(fig_num)
+  plt.ylabel(ylabel)
+  plt.xlabel(xlabel)
+  plt.title(title)
+  plt.plot(range(len(losses)), losses, label="losses")
+  if len(val_losses) > 0:
+    plt.plot(range(len(val_losses)), val_losses, label="validation losses")
+  plt.legend(loc=0)
+  fig_num += 1
+
+def plotClusters(title, xlabel, ylabel, data, centers, data_groups):
+    global fig_num
+    colors = ["red", "blue", "yellow", "green", "black"]
+    data_colors = []
+    for i in range(0, data.shape[0]):
+        data_colors.append(colors[data_groups[i]])
+    plt.figure(fig_num)
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.title(title)
+    #plt.plot(range(len(losses)), losses, label="losses")
+    plt.scatter(data[:,0], data[:,1], c=data_colors)
+    plt.scatter(centers[:,0], centers[:,1], c=colors)
+
+    plt.legend(loc=0)
+    fig_num += 1
 
 # Distance function for GMM
 def distanceFunc(X, MU):
@@ -53,10 +81,12 @@ def log_GaussPDF(X, mu, sigma):
     # log Gaussian PDF N X K
 
     pairwise_dist = distanceFunc( X, mu )
-    sigma_dist = -1*tf.divide(pairwise_dist, 2*sigma)
+    print(pairwise_dist)
+    sigma_dist = -1*tf.div(pairwise_dist, tf.transpose(2*sigma))
+    print(sigma_dist)
     coeff = -1*tf.log(2*math.pi*sigma)
 
-    return coeff + sigma_dist
+    return tf.transpose(coeff) + sigma_dist
 
 def log_posterior(log_PDF, log_pi):
     # Input
@@ -68,29 +98,52 @@ def log_posterior(log_PDF, log_pi):
 
     p_xz = tf.add( log_PDF, log_pi )
 
-    return logsoftmax(p_xz)
+    return hlp.logsoftmax(p_xz)
 
 def MoG(dataset, K, alpha):
   N = dataset.shape[0]
   D = dataset.shape[1]
 
-  X = tf.get_variable(tf.float32, shape=(N, D), name="X")
-  MU = tf.get_variable(tf.float32, shape=(K, D), name="MU")
-  sigma = tf.placeholder(tf.float32, shape=(K, 1), name="sigma")
-
-  MU =
+  X = tf.placeholder(tf.float32, shape=(N, D), name="X")
+  MU = tf.get_variable(name="MU", initializer=tf.random.normal(shape=[K, D]))
+  sigma = tf.get_variable(shape=(K, 1), name="sigma")
 
   # compute the P(xn | zn = K)
   log_PDF = log_GaussPDF(X, MU, sigma)
 
+  # Reduce to a K by 1 matrice containing all of the means
+  log_pi = tf.reduce_max(MU, 1)
+
   # compute the P(z = k)
   p_zk = log_posterior(log_PDF, log_pi)
 
-  P = p_zk + log_PDF
+  loss = p_zk + log_PDF
 
-  opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(-1 * P)
+  opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(-1 * loss)
 
-  return dist_mat, MU, X, loss, opt
+  return MU, X, loss, opt, sigma
 
 
-data
+def runGmmLoss(K):
+  iterations = 300
+  MU, X, loss, opt, sig = MoG(data, K, 0.1)
+
+  loss_vec = []
+
+  with tf.Session() as session:
+    session.run(tf.global_variables_initializer())
+    session.run(tf.local_variables_initializer())
+    for i in range(0, iterations):
+        _, l, mu, s = session.run([opt, loss, MU, sig], feed_dict={X: data})
+        #print(val_loss)
+        print(s)
+        loss_vec.append(l)
+
+  #plotLoss("Loss when K=3", "iterations", "loss", loss_vec)
+  #tf.reset_default_graph()
+
+
+
+if __name__ == "__main__":
+  runGmmLoss(3)
+  plt.show()
