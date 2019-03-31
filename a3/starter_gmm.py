@@ -23,17 +23,6 @@ if is_valid:
 
 print(num_pts, dim)
 
-def convariance_Mat(X, mean):
-    # Inputs
-    # X: is an NxD matrix
-    # m: some of the
-
-    #mean = tf.reduce_mean(X, axis=0, keep_dims=True)
-    # x_aux = tf.subtract(X, mean)
-    # cov = tf.matmul(x_aux, x_aux, transpose_a=True)/(x_aux.shape[0])
-    # return cov
-    return
-
 # Distance function for GMM
 def distanceFunc(X, MU):
     # Inputs
@@ -62,8 +51,7 @@ def log_GaussPDF(X, mu, sigma):
     #
     # Outputs:
     # log Gaussian PDF N X K
-    #
-    # TODO
+
     pairwise_dist = distanceFunc( X, mu )
     sigma_dist = -1*tf.divide(pairwise_dist, 2*sigma)
     coeff = -1*tf.log(2*math.pi*sigma)
@@ -77,14 +65,32 @@ def log_posterior(log_PDF, log_pi):
     #
     # Outputs
     # log_post: N X K
-    #
-    # TODO
+
     p_xz = tf.add( log_PDF, log_pi )
 
     return logsoftmax(p_xz)
 
+def MoG(dataset, K, alpha):
+  N = dataset.shape[0]
+  D = dataset.shape[1]
 
-mat = [[1, 1], [1, 1]]
-mu = [2, 2]
+  X = tf.get_variable(tf.float32, shape=(N, D), name="X")
+  MU = tf.get_variable(tf.float32, shape=(K, D), name="MU")
+  sigma = tf.placeholder(tf.float32, shape=(K, 1), name="sigma")
 
-print(convariance_Mat(mat, mu))
+  MU =
+
+  # compute the P(xn | zn = K)
+  log_PDF = log_GaussPDF(X, MU, sigma)
+
+  # compute the P(z = k)
+  p_zk = log_posterior(log_PDF, log_pi)
+
+  P = p_zk + log_PDF
+
+  opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(-1 * P)
+
+  return dist_mat, MU, X, loss, opt
+
+
+data
