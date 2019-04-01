@@ -82,7 +82,7 @@ def log_GaussPDF(X, mu, sigma):
 
     pairwise_dist = distanceFunc(X, mu)
     sigma_dist = -1*tf.div(pairwise_dist, tf.transpose(2*sigma))
-    coeff = -(dim/2)*tf.log(2*math.pi*sigma)
+    coeff = -1*tf.log((2*math.pi)**(dim/2)*sigma)
 
     return tf.transpose(coeff) + sigma_dist
 
@@ -118,7 +118,10 @@ def MoG(dataset, K, alpha):
 
   opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(loss)
 
-  return MU, X, loss, opt, sigma, pi
+  # Find the log posterioer for plotting the clusters at the end
+  sm = hlp.logsoftmax(log_PDF)
+
+  return MU, X, loss, opt, sigma, pi, sm
 
 def MOGLoss(K):
   N, D = num_pts, dim
@@ -138,7 +141,10 @@ def MOGLoss(K):
 
   loss = tf.reduce_sum(-1*sum)
 
-  return MU, X, loss, sigma, pi
+  # Find the log posterioer for plotting the clusters at the end
+  sm = hlp.logsoftmax(log_PDF)
+
+  return MU, X, loss, sigma, pi, sm
 
 
 def runGmmLoss(K):
@@ -151,7 +157,7 @@ def runGmmLoss(K):
     session.run(tf.global_variables_initializer())
     session.run(tf.local_variables_initializer())
     for i in range(0, iterations):
-        mu, l, _, s, p = session.run([MU, loss, opt, sigma, pi], feed_dict={X: data})
+        mu, l, _, s, p, sm = session.run([MU, loss, opt, sigma, pi], feed_dict={X: data})
         #print(val_loss)
         print(mu)
         loss_vec.append(l)
@@ -161,10 +167,10 @@ def runGmmLoss(K):
 
 def runGMMClusters(K):
   iterations = 300
-  MU, X, loss, opt, sigma, pi = MoG(data, K, 0.01)
+  MU, X, loss, opt, sigma, pi, sm = MoG(data, K, 0.01)
 
   if is_valid:
-    MU_val, X_val, val_loss, sigma_val, pi_val  = MOGLoss(val_data, K)
+    MU_val, X_val, val_loss, sigma_val, pi_val, sm = MOGLoss(val_data, K)
     val_loss_vec = []
 
   loss_vec = []
@@ -173,7 +179,7 @@ def runGMMClusters(K):
     session.run(tf.global_variables_initializer())
     session.run(tf.local_variables_initializer())
     for i in range(0, iterations):
-      mu, l, _, s, p = session.run([MU, loss, opt, sigma, pi], feed_dict={X: data})
+      mu, l, _, s, p, sm_val = session.run([MU, loss, opt, sigma, pi, sm], feed_dict={X: data})
       #print(data.shape, K, a.shape)
       if is_valid:
         l_val = session.run([val_loss], feed_dict={X_val: val_data, MU_Val: mu, sigma_val: s, pi_val: p})
@@ -181,12 +187,8 @@ def runGMMClusters(K):
       loss_vec.append(l)
 
   # Change this so that the posterior log value is used to class the values
-  loggy = log_GaussPDF(X, mu, s)
-  #print(loggy)
-  #print(hlp.logsoftmax(loggy))
-  #print(tf.argmin(hlp.logsoftmax(loggy), axis=1))
-  cluster_groups = tf.argmin(hlp.logsoftmax(loggy), axis=1)
-  print(cluster_groups)
+  cluster_groups = np.argmax(sm_val, axis=1)
+  #print(cluster_groups)
   #group_array = tf.zeros([K])
   #for i in range(0, cluster_groups.shape[0]):
   #  group_array[cluster_groups[i]] += 1
