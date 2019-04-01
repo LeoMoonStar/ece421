@@ -82,7 +82,7 @@ def log_GaussPDF(X, mu, sigma):
 
     pairwise_dist = distanceFunc(X, mu)
     sigma_dist = -1*tf.div(pairwise_dist, tf.transpose(2*sigma))
-    coeff = -1*tf.log(2*math.pi*sigma)
+    coeff = -(dim/2)*tf.log(2*math.pi*sigma)
 
     return tf.transpose(coeff) + sigma_dist
 
@@ -99,40 +99,51 @@ def log_posterior(log_PDF, log_pi):
     return hlp.logsoftmax(p_xz)
 
 def MoG(dataset, K, alpha):
-  N = dataset.shape[0]
-  D = dataset.shape[1]
+  N, D = num_pts, dim
 
   X = tf.placeholder(tf.float32, shape=(N, D), name="X")
   MU = tf.get_variable(name="MU", initializer=tf.random.normal(shape=[K, D]))
   sigma = tf.get_variable(shape=(K, 1), name="sigma")
-  sexp = tf.exp(sigma)
   pi = tf.get_variable(shape=(1, K), name="pi")
+
+  # Take the expononent of the sigma as per instructions
+  sexp = tf.exp(sigma)
 
   # compute the P(xn | zn = K)
   log_PDF = log_GaussPDF(X, MU, sexp)
 
-  loss = tf.reduce_sum(-1*(hlp.logsoftmax(pi) + log_PDF))
-  #loss = tf.reduce_sum(log_posterior(log_PDF, hlp.logsoftmax(pi)))
+  sum = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
+
+  loss = tf.reduce_sum(-1*sum)
 
   opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(loss)
 
   return MU, X, loss, opt, sigma, pi
 
-def MOGLoss(dataset, K):
-  N = dataset.shape[0]
-  D = dataset.shape[1]
+def MOGLoss(K):
+  N, D = num_pts, dim
 
-  X = tf.placeholder(tf.float32, shape=(N, D), name="X")
-  Phi = tf.get_variable(name="Phi", initializer=tf.random.normal(shape=[K, D]))
-  sigma = tf.get_variable(shape=(K, 1), name="sigma")
+  X = tf.placeholder(tf.float32, shape=(N, D), name="X_VAL")
+  MU = tf.get_variable(name="MU_VAL", initializer=tf.random.normal(shape=[K, D]))
+  sigma = tf.get_variable(shape=(K, 1), name="sigma_VAL")
+  pi = tf.get_variable(shape=(1, K), name="pi_VAL")
 
-  #_, loss = computeLoss(X, MU)
-  #return X, MU, loss
+  # Take the expononent of the sigma as per instructions
+  sexp = tf.exp(sigma)
+
+  # compute the P(xn | zn = K)
+  log_PDF = log_GaussPDF(X, MU, sexp)
+
+  sum = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
+
+  loss = tf.reduce_sum(-1*sum)
+
+  return MU, X, loss, sigma, pi
 
 
 def runGmmLoss(K):
   iterations = 300
-  MU, X, loss, opt, sig, pi = MoG(data, K, 0.1)
+  MU, X, loss, opt, sigma, pi = MoG(data, K, 0.01)
 
   loss_vec = []
 
@@ -140,20 +151,20 @@ def runGmmLoss(K):
     session.run(tf.global_variables_initializer())
     session.run(tf.local_variables_initializer())
     for i in range(0, iterations):
-        _, l, mu, s, p = session.run([opt, loss, MU, sig, pi], feed_dict={X: data})
+        mu, l, _, s, p = session.run([MU, loss, opt, sigma, pi], feed_dict={X: data})
         #print(val_loss)
-        print(l)
+        print(mu)
         loss_vec.append(l)
 
-  #plotLoss("Loss when K=3", "iterations", "loss", loss_vec)
+  plotLoss("Loss when K=3", "iterations", "loss", loss_vec)
   #tf.reset_default_graph()
 
 def runGMMClusters(K):
-  iterations = 10000
-  MU, X, loss, opt, sig = MoG(data, K, 0.1)
+  iterations = 300
+  MU, X, loss, opt, sigma, pi = MoG(data, K, 0.01)
 
   if is_valid:
-    X_val, MU_Val, val_loss  = MOGLoss(val_data, K)
+    MU_val, X_val, val_loss, sigma_val, pi_val  = MOGLoss(val_data, K)
     val_loss_vec = []
 
   loss_vec = []
@@ -162,18 +173,24 @@ def runGMMClusters(K):
     session.run(tf.global_variables_initializer())
     session.run(tf.local_variables_initializer())
     for i in range(0, iterations):
-      _, l, mu, a, s  = session.run([opt, loss, MU, sig], feed_dict={X: data})
+      mu, l, _, s, p = session.run([MU, loss, opt, sigma, pi], feed_dict={X: data})
       #print(data.shape, K, a.shape)
       if is_valid:
-        l_val = session.run([val_loss], feed_dict={X_val: val_data, MU_Val: mu})
+        l_val = session.run([val_loss], feed_dict={X_val: val_data, MU_Val: mu, sigma_val: s, pi_val: p})
         val_loss_vec.append(l_val)
       loss_vec.append(l)
 
-  cluster_groups = np.argmin(a, axis=1)
-  group_array = np.zeros((K,))
-  for i in range(0, cluster_groups.shape[0]):
-    group_array[cluster_groups[i]] += 1
-  print(100*group_array/np.sum(group_array))
+  # Change this so that the posterior log value is used to class the values
+  loggy = log_GaussPDF(X, mu, s)
+  #print(loggy)
+  #print(hlp.logsoftmax(loggy))
+  #print(tf.argmin(hlp.logsoftmax(loggy), axis=1))
+  cluster_groups = tf.argmin(hlp.logsoftmax(loggy), axis=1)
+  print(cluster_groups)
+  #group_array = tf.zeros([K])
+  #for i in range(0, cluster_groups.shape[0]):
+  #  group_array[cluster_groups[i]] += 1
+  #print(100*group_array/np.sum(group_array))
 
   title = "Clusters when K = " + str(K)
   xlabel = "x1"
@@ -186,5 +203,6 @@ def runGMMClusters(K):
   tf.reset_default_graph()
 
 if __name__ == "__main__":
-  runGmmLoss(3)
+  #runGmmLoss(5)
+  runGMMClusters(3)
   plt.show()
