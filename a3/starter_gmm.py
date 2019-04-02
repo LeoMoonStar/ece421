@@ -103,8 +103,8 @@ def MoG(dataset, K, alpha):
 
   X = tf.placeholder(tf.float32, shape=(N, D), name="X")
   MU = tf.get_variable(name="MU", initializer=tf.random.normal(shape=[K, D]))
-  sigma = tf.get_variable(shape=(K, 1), name="sigma")
-  pi = tf.get_variable(shape=(1, K), name="pi")
+  sigma = tf.get_variable(name="sigma", initializer=tf.random.normal(shape=[K, 1]))
+  pi = tf.get_variable(name="pi", initializer=tf.random.normal(shape=[1, K]))
 
   # Take the expononent of the sigma as per instructions
   sexp = tf.exp(sigma)
@@ -112,11 +112,14 @@ def MoG(dataset, K, alpha):
   # compute the P(xn | zn = K)
   log_PDF = log_GaussPDF(X, MU, sexp)
 
-  sum = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
+  #print(hlp.logsoftmax(pi).shape, log_PDF.shape)
 
-  loss = tf.reduce_sum(-1*sum)
+  sum_l = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
+  #print(sum_l.shape)
 
-  opt = tf.train.AdamOptimizer(learning_rate=alpha).minimize(loss)
+  loss = -1*tf.reduce_sum(sum_l)
+
+  opt = tf.train.AdamOptimizer(learning_rate=alpha, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(loss)
 
   # Find the log posterioer for plotting the clusters at the end
   sm = hlp.logsoftmax(log_PDF)
@@ -137,9 +140,9 @@ def MOGLoss(K):
   # compute the P(xn | zn = K)
   log_PDF = log_GaussPDF(X, MU, sexp)
 
-  sum = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
+  sum_l = hlp.reduce_logsumexp(hlp.logsoftmax(pi) + log_PDF)
 
-  loss = tf.reduce_sum(-1*sum)
+  loss = -1*tf.reduce_sum(sum_l)
 
   # Find the log posterioer for plotting the clusters at the end
   sm = hlp.logsoftmax(log_PDF)
@@ -149,7 +152,7 @@ def MOGLoss(K):
 
 def runGmmLoss(K):
   iterations = 300
-  MU, X, loss, opt, sigma, pi = MoG(data, K, 0.01)
+  MU, X, loss, opt, sigma, pi = MoG(data, K, 0.1)
 
   loss_vec = []
 
@@ -167,7 +170,7 @@ def runGmmLoss(K):
 
 def runGMMClusters(K):
   iterations = 300
-  MU, X, loss, opt, sigma, pi, sm = MoG(data, K, 0.01)
+  MU, X, loss, opt, sigma, pi, sm = MoG(data, K, 0.1)
 
   if is_valid:
     MU_val, X_val, val_loss, sigma_val, pi_val, sm = MOGLoss(val_data, K)
@@ -207,4 +210,9 @@ def runGMMClusters(K):
 if __name__ == "__main__":
   #runGmmLoss(5)
   runGMMClusters(3)
+
+  clusters = [1, 2, 3, 4, 5]
+  for K in clusters:
+    runGMMClusters(K)
+
   plt.show()
